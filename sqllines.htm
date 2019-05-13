@@ -1,0 +1,106 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>SQL COPY/PASTE</title>
+
+
+<style>
+body {
+  font-family: Verdana;
+}
+
+.button {
+  background-color: #C0C0C0;
+  border: none;
+  color: white;
+  padding: 15px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  font-family: Verdana;
+  width: 175px;
+}
+
+</style>
+
+<SCRIPT LANGUAGE="Javascript">
+
+var out = "";
+
+function listsql() {
+  out = "";
+  sortedlist = document.getElementById("listen").value;
+  sortedlist = sortedlist.replace(/[\n\r](?!\w)/gi,'');
+  ArrayList = sortedlist.split(/\r?\n/gi);
+  ArrayNoDupes = ([...new Set(ArrayList)]);
+  document.getElementById("it").innerHTML = ArrayList.length;
+  document.getElementById("ot").innerHTML = ArrayNoDupes.length;
+  document.getElementById("rt").innerHTML = (ArrayList.length - ArrayNoDupes.length);
+
+  ArrayNoDupes.forEach(prepOutput);
+
+  var newStr = out.slice(0, -1);  // Remove tailing ,
+  var output = '('+newStr+')';
+
+  document.getElementById("listenOut").value = output;
+}
+
+function prepOutput(value, index, array) {
+  var x = document.getElementById("numbers").checked;
+    if (x) {
+      out = out + value + ","; 
+    }
+    else  {
+      out = out + "'"+value+"'" + "," 
+    }
+}
+
+function copyOutput() {
+  var copyText = document.getElementById("listenOut");
+  copyText.select();
+  document.execCommand("copy");
+  //alert("Copied the text: " + copyText.value);
+}
+</SCRIPT>
+
+</head>
+<body onload='document.getElementById("listen").focus();'>
+
+<table>
+<tbody>
+<tr>
+<td style="width: 300px;"><textarea id="listen" cols="79" name="mainlist" rows="20"></textarea></td>
+<td style="width: 500px;">
+  <center>
+    <input type="button" class="button" onClick="listsql();"  value="SQL ->" /><br /><br />
+    Numbers <input id="numbers" type="checkbox" /><br /><br />
+    <input type="button" class="button" onClick="copyOutput();"  value="Copy" /><br /><br />
+      <table>
+      <tbody>
+      <tr>
+      <td style="width: 150px;">Input total: </td>
+      <td style="width: 25px;"><span id="it"></span></td>
+      </tr>
+      <tr>
+      <td style="width: 150px;">Output total: </td>
+      <td style="width: 25px;"><span id="ot"></span></td>
+      </tr>
+      <tr>
+      <td style="width: 150px;">Removed: </td>
+      <td style="width: 25px;"><span id="rt"></span></td>
+      </tr>
+      </tbody>
+      </table>
+  </center>
+  </td>
+<td style="width: 300px;"><textarea id="listenOut" cols="79" name="mainlistOut" rows="20"></textarea></td>
+</tr>
+</tbody>
+</table>
+
+</body>
+</html>
