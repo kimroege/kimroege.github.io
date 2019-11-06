@@ -1,0 +1,58 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+	<title>
+		Keys Outgoing UDP packet
+	</title>
+</head>
+<body>
+
+<h3>Keys Outgoing UDP packet</h3>
+
+<textarea rows="12" cols="233" type="text" id="udppacket" placeholder="UDP packet"></textarea>
+<br>
+<button onclick="decodepacket()">Decode</button>
+
+<br><br>
+Protocol: <span id="protocol"></span><br>
+NoOfKeys: <span id="noofkeys"></span><br>
+SerialNo: <span id="serialno"></span><br><br>
+
+Keys: <span id="keys"></span>
+
+<script>
+function decodepacket() {
+  var packet = document.getElementById("udppacket").value;
+  var packetlength = Math.floor((packet.length-146)/28);
+  
+  var protocol = parseInt(packet[2] + packet[3], 16);
+  document.getElementById("protocol").innerHTML = protocol;
+
+  var noofkeys = parseInt(packet[4] + packet[5], 16);
+  document.getElementById("noofkeys").innerHTML = noofkeys;
+
+  var serialno = parseInt(packet[14] + packet[15] + packet[12] + packet[13] + packet[10] + packet[11], 16);
+  document.getElementById("serialno").innerHTML = serialno;
+
+  for (i = 0; i < packetlength; i++)
+  {
+  		document.getElementById("keys").innerHTML += '<br>' + getKey(packet.slice(-28));
+  		packet = packet.slice(0, -28);
+ 	}
+}
+
+function getKey(key) {
+	var k= key;
+	var realkey = k[14] + k[15] + k[12] + k[13] + k[10] + k[11] + k[8] + k[9] + k[6] + k[7] + k[4] + k[5] + k[2] + k[3] + k[0] + k[1];
+	if (k[19] == 1 ) {
+		realkey = "<b>" + realkey + "</b>";
+	}
+	return realkey;
+}
+
+
+</script>
+
+</body>
+</html>
