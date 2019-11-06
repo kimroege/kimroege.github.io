@@ -37,7 +37,7 @@ function decodepacket() {
 
   for (i = 0; i < packetlength; i++)
   {
-  		document.getElementById("keys").innerHTML += '<br>' + getKey(packet.slice(-28));
+  		document.getElementById("keys").innerHTML = '<br>' + getKey(packet.slice(-28)) + document.getElementById("keys").innerHTML;
   		packet = packet.slice(0, -28);
  	}
 }
