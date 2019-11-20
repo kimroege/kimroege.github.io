@@ -11,6 +11,9 @@ function handleUrl(url, sab, omg) {
   var saburl='https://192.168.0.183:8080/sabnzbd/api?mode=addurl&name='+omgurl+'&nzbname=&cat=*&script=Default&priority=-100&pp=-1&apikey='+sabkey;
   alert(saburl);
   var xhr=new XMLHttpRequest();
+  xhr.onreadystatechange=function() {
+    alert("readyState: "+ xhr.readyState + "xhr.status: " + xhr.status);
+  } 
   xhr.open("GET",saburl,true);
   xhr.send();
 }
