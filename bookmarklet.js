@@ -5,7 +5,7 @@ document.head.appendChild(imported);
 
 
 var jsc = document.createElement('script');
-jsc.src = 'https://jsconsole.com/js/remote.js?e7c40c71-b2de-4bd5-a5cd-41242bb1c170';
+jsc.src = 'https://jsconsole.com/js/remote.js?1250f5fa-274b-4d47-bd0d-4a5c1dafec6e';
 document.head.appendChild(jsc);
 
 console.log("test");
