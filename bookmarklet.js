@@ -12,7 +12,7 @@ function handleUrl(url, sab, omg) {
   alert(saburl);
   var xhr=new XMLHttpRequest();
   xhr.onreadystatechange=function() {
-    alert("readyState: "+ xhr.readyState + "xhr.status: " + xhr.status);
+    alert("readyState: "+ xhr.readyState + " xhr.status: " + xhr.status);
   } 
   xhr.open("GET",saburl,true);
   xhr.send();
