@@ -5,23 +5,30 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<script>
-    
-		    function go() {
-		      var baseurl = 'https://fjernleje.filmstriben.dk/ajax/search/search?query=*&pagination%5Bsorting%5D=cd-asc';
-		      var corsProxy = 'https://cors-anywhere.herokuapp.com/'+baseurl;
-		      url = corsProxy;
 
-		      var xhttp = new XMLHttpRequest();
-		      xhttp.onreadystatechange = function() {
-						if (this.readyState == 4 && this.status == 200) {
-							json = JSON.parse(xhttp.responseText);
-							console.log(json);
-							};
-					xhttp.open("GET", url, true);
-		      xhttp.setRequestHeader("x-requested-with", 'Filmstriben');
-		      xhttp.send();
-		    }
-		    }
+			function go() {
+				var baseurl = 'https://fjernleje.filmstriben.dk/ajax/search/search?query=*&pagination%5Bsorting%5D=cd-asc';
+				var corsProxy = 'https://cors-anywhere.herokuapp.com/'+baseurl;
+				url = corsProxy;
+
+				console.log(url);
+
+				var xhttp = new XMLHttpRequest();
+				xhttp.onreadystatechange = function() {
+					if (this.readyState == 4 && this.status == 200) {
+						json = JSON.parse(xhttp.responseText);
+						//console.log(json);
+						json.res.forEach(conslist);
+					};
+				}
+				xhttp.open("GET", url, true);
+				xhttp.setRequestHeader("x-requested-with", 'Filmstriben');
+				xhttp.send();
+
+			}
+			function conslist(item) {
+				console.log(item.fields.item_title);
+			}
 
     </script>
 	</head>
