@@ -17,7 +17,7 @@
 				xhttp.onreadystatechange = function() {
 					if (this.readyState == 4 && this.status == 200) {
 						json = JSON.parse(xhttp.responseText);
-						json.res.forEach(conslist);
+						json.movies.forEach(conslist);
 						movies.sort((a, b) => (a.publish_date < b.publish_date) ? 1 : -1)
 						createTable();
 					};
