@@ -45,12 +45,12 @@
 				for (let i = 0; i < movies.length; i++) {
 					tableRow += createTableRow(movies[i]);
 				}
-        document.getElementById("table").innerHTML = tableStart + tableRow + tableEnd;
+        			document.getElementById("table").innerHTML = tableStart + tableRow + tableEnd;
 				document.getElementById('table').childNodes[0].nodeValue = null; // Get rid of "undefined"
 			}
 
 			function createTableRow(item) {
-				return '<tr><td class="tg-0pky"><a href="#" onClick=\'alertDescription(\"'+ item.desc +'\");return false;\'>'+ item.title +'</a></td><td class="tg-0pky">'+ item.publish_date +'</td><td class="tg-0pky"><a href="https://imdb.com/title/'+ item.imdb +'">'+ item.imdb +'</a></td></tr>';
+				return '<tr><td class="tg-0pky"><a href="#" onClick=\'alertDescription(\"'+ item.desc +'\");return false;\'>'+ item.title +'</a></td><td class="tg-0pky">'+ item.publish_date +'</td><td class="tg-0pky"><a href="https://imdb.com/title/'+ item.imdb +'" target="_blank">'+ item.imdb +'</a></td></tr>';
 			}
 
 			function alertDescription(desc) {
