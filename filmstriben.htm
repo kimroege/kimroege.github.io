@@ -5,6 +5,13 @@
 		<title>Filmstriben</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
+
+		<style style="text/css">
+		    .tg tr:hover {
+		          background-color: #b8d1f3;
+		    }
+		</style>
+
 		<script>
 			let movies = [];
 
@@ -33,13 +40,15 @@
   					title: item.fields.item_title,
   					publish_date: item.fields.publish_date.value,
   					imdb: imdb, 
-  					desc: item.fields.item_descr
+  					desc: item.fields.item_descr, 
+  					filmstribenUrl: item.fields.url.value,
+  					filmstribenId: item.fields.field_movie_id.value
 				};
 				movies.push(movie);
 			}
 
 			function createTable() {
-				const tableStart 	= '<table class="tg"><tr><th class="tg-0pky" align="left">Title</th><th class="tg-0pky" align="left">Date</th><th class="tg-0pky" align="left">imdb</th></tr>';
+				const tableStart 	= '<table class="tg"><tr><th class="tg-0pky" align="left">Title</th><th class="tg-0pky" align="left">Filmstriben</th><th class="tg-0pky" align="left">Date</th><th class="tg-0pky" align="left">imdb</th></tr>';
 				const tableEnd 	= '</table>';
 				let tableRow;
 				for (let i = 0; i < movies.length; i++) {
@@ -50,7 +59,7 @@
 			}
 
 			function createTableRow(item) {
-				return '<tr><td class="tg-0pky"><a href="#" onClick=\'alertDescription(\"'+ item.desc +'\");return false;\'>'+ item.title +'</a></td><td class="tg-0pky">'+ item.publish_date +'</td><td class="tg-0pky"><a href="https://imdb.com/title/'+ item.imdb +'" target="_blank">'+ item.imdb +'</a></td></tr>';
+				return '<tr><td class="tg-0pky"><a href="#" onClick=\'alertDescription(\"'+ item.desc +'\");return false;\'>'+ item.title +'</a></td><td class="tg-0pky"><a href="https://fjernleje.filmstriben.dk'+ item.filmstribenUrl +'" target="_blank">'+ item.filmstribenId +'</a></td><td class="tg-0pky">'+ item.publish_date +'</td><td class="tg-0pky"><a href="https://imdb.com/title/'+ item.imdb +'" target="_blank">'+ item.imdb +'</a></td></tr>';
 			}
 
 			function alertDescription(desc) {
