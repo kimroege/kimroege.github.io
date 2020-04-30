@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+	
+</head>
+
+<script>
+	let url = 'https://raw.githubusercontent.com/PodgroupConnectivity/mcc-mnc-list/master/mcc-mnc-list.json';
+
+	fetch(url)
+	.then(res => res.json())
+	.then((out) => {
+	  createList(out);
+	  document.getElementById("list").innerHTML += "default: return 'unknown';";
+	})
+	.catch(err => { throw err });
+
+	function createList(arr) {
+		arr.forEach((element, index, array) => {
+			var string = "case " + element.plmn + ": return '" + element.operator + ", " + element.countryCode + "';<br>";
+			document.getElementById("list").innerHTML += string;
+		});
+	}
+
+</script>
+
+<body>
+
+<div id="list"></div>
+
+</body>
+</html>
