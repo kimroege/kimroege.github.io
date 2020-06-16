@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Epic Games free games</title>
+    <style>
+        body {background-color: white;}
+        p    {color: #034f84;}
+        img {
+            max-width:200px;
+            max-height:200px;
+            width:auto;
+            height:auto; }
+    </style>
+
+    </head>
+    <body>
+
+        <div id="freeGamesList"></div>
+
+        <script type="text/javascript">
+            var page = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=DK&allowCountries=DK";
+            var corsproxy = "https://cors-anywhere.herokuapp.com/";
+            var productPage = "https://www.epicgames.com/store/en-US/product/";
+            var imageType = "DieselStoreFrontTall";
+
+            let freeGames = [];
+
+            var freeGamesUrl = corsproxy + page;
+
+            fetchFreeGames();
+
+            function fetchFreeGames() {
+                var xhr = new XMLHttpRequest();
+                xhr.onreadystatechange = function() {
+                    if (this.readyState == 4 && this.status == 200) {
+                       response(JSON.parse(xhr.responseText));
+                    }
+                };
+                xhr.open("GET", freeGamesUrl, true);
+                xhr.send();
+            }
+
+            function response(json) {
+                var elements = json.data.Catalog.searchStore.elements;
+                for(var i = 0; i < elements.length; i++) {
+                    var obj = elements[i];
+                    createGameObj(obj);
+                }
+                freeGames.sort((a, b) => (a.startDate > b.startDate) ? 1 : -1)
+
+                document.getElementById("freeGamesList").innerHTML = createHtmlOutput(freeGames);
+                document.getElementById('freeGamesList').childNodes[0].nodeValue = null; // Get rid of "undefined"
+            }
+
+            function createGameObj(gameElement){
+
+                var promotion, upcommingPromotion, startDate, endDate;
+
+                if (gameElement.promotions != null) {
+                    if (gameElement.promotions.promotionalOffers[0] != null) { promotion = 1; }
+                    if (gameElement.promotions.upcomingPromotionalOffers[0] != null) { upcommingPromotion = 1; }
+                }
+
+                if (promotion == 1) { 
+                    startDate = gameElement.promotions.promotionalOffers[0].promotionalOffers[0].startDate;
+                    endDate = gameElement.promotions.promotionalOffers[0].promotionalOffers[0].endDate;
+                }
+
+                if (upcommingPromotion == 1) { 
+                    startDate = gameElement.promotions.upcomingPromotionalOffers[0].promotionalOffers[0].startDate;
+                    endDate = gameElement.promotions.upcomingPromotionalOffers[0].promotionalOffers[0].endDate;
+                }
+
+                let game = {
+                    title: gameElement.title,
+                    slug: gameElement.productSlug,
+                    imageUrl: findImageType(gameElement.keyImages),
+                    startDate: handleUndefined(startDate), 
+                    endDate: handleUndefined(endDate)
+                };
+                freeGames.push(game);
+            }
+
+            function findImageType(images) {
+                for (i = 0; i < images.length; i++) {
+                    if (images[i].type == imageType) {
+                        var imageUrl = images[i].url;
+                    }
+                }
+                return imageUrl;
+            }
+
+            function handleUndefined(value){
+                if (value === undefined) {
+                    return " Unknown";
+                }
+                return value;
+            }
+
+            function createHtmlOutput(games) {
+                var htmlString;
+                for (i = 0; i < games.length; i++) {
+                        htmlString += '<p><strong>'+games[i].title+'</strong><br />Startdate:&nbsp;'+games[i].startDate+'<br />Enddate:&nbsp;'+games[i].endDate+'<br /><a href="'+productPage+games[i].slug+'" target="_blank"><img src="'+games[i].imageUrl+'" alt="'+games[i].title+'" /></a></p>';
+                    }
+                return htmlString;
+                }
+        </script>
+    </body>
+</html>
