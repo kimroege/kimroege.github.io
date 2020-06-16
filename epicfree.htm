@@ -18,14 +18,14 @@
         <div id="freeGamesList"></div>
 
         <script type="text/javascript">
-            var page = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=DK&allowCountries=DK";
-            var corsproxy = "https://cors-anywhere.herokuapp.com/";
-            var productPage = "https://www.epicgames.com/store/en-US/product/";
-            var imageType = "DieselStoreFrontTall";
+            const page = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=DK&allowCountries=DK";
+            const corsproxy = "https://cors-anywhere.herokuapp.com/";
+            const productPage = "https://www.epicgames.com/store/en-US/product/";
+            const imageType = "DieselStoreFrontTall";
 
             let freeGames = [];
 
-            var freeGamesUrl = corsproxy + page;
+            const freeGamesUrl = corsproxy + page;
 
             fetchFreeGames();
 
