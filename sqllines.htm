@@ -32,13 +32,6 @@ body {
 document.addEventListener('keydown', keyCode);
 
 function keyCode(e) {
-  // 81 = q
-  // 78 = n
-  // 67 = c
-  // 80 = p
-  // 84 = t
-
-  //alert(e.keyCode);
   if (e.keyCode == 81) {
     listsql();
     copyOutput();
@@ -105,9 +98,6 @@ function listsql() {
 }
 
 function prepOutput(value, index, array) {
-  //var x = document.getElementById("numbers").checked;
-  //var p = document.getElementById("pipe").checked;
-
   var r_text = document.getElementById("radio_text").checked;
   var r_number = document.getElementById("radio_number").checked;
   var r_pipe = document.getElementById("radio_pipe").checked;
@@ -122,17 +112,6 @@ function prepOutput(value, index, array) {
   if (r_pipe) {
     out = out + value + "|";
   }
-
-    /*if (p) {
-      out = out + value + "|";
-    }
-
-    if (x && !p) {
-      out = out + value + ","; 
-    }
-    if (!x && !p)  {
-      out = out + "'"+value+"'" + "," 
-    }*/
 }
 
 function copyOutput() {
@@ -151,13 +130,6 @@ function copyOutput() {
 <td style="width: 300px;"><textarea placeholder="Insert values here&#10;and convert it&#10;into SQL format" id="listen" cols="79" name="mainlist" rows="20"></textarea></td>
 <td style="width: 500px;">
   <center>
-    <!--<input type="button" class="button" onClick="listsql();"  value="SQL ->" /><br/><br/>
-    <input id="numbers" type="checkbox"> Numbers <br/>
-    <input id="pipe" type="checkbox"> Pipe<br/>
-    <input id="radio_text" type="radio" name="outType" value="text"> Text (Press T)<br/>
-    <input id="radio_number" type="radio" name="outType" value="text"> Number (Press N)<br/>
-    <input id="radio_pipe" type="radio" name="outType" value="text"> Pipe (Press P)<br/>
-    <input type="button" class="button" onClick="copyOutput();"  value="Copy" /><br/><br/>-->
       <table>
       <tbody>
         <tr>
@@ -169,8 +141,6 @@ function copyOutput() {
       <tr>
       <td style="width: 175px;"><input id="radio_pipe" type="radio" name="outType" value="text"> Pipe (Press P)<br><br></td>
       </tr>
-
-
       <tr>
       <td style="width: 150px;">Input total: </td>
       <td style="width: 25px; text-align: right;"><span id="it"></span></td>
