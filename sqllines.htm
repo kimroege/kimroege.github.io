@@ -68,6 +68,11 @@ function keyCode(e) {
   }
 }
 
+function click_event() {
+    listsql();
+    copyOutput();
+}
+
 var out = "";
 
 function listsql() {
@@ -133,13 +138,13 @@ function copyOutput() {
       <table>
       <tbody>
         <tr>
-      <td style="width: 175px;"><input id="radio_text" type="radio" name="outType" value="text"> Text (Press T)</td>
+      <td style="width: 175px;"><input id="radio_text" type="radio" name="outType" value="text" onclick="click_event();"> Text (Press T)</td>
       </tr>
       <tr>
-      <td style="width: 175px;"><input id="radio_number" type="radio" name="outType" value="text"> Number (Press N)</td>
+      <td style="width: 175px;"><input id="radio_number" type="radio" name="outType" value="text" onclick="click_event();"> Number (Press N)</td>
       </tr>
       <tr>
-      <td style="width: 175px;"><input id="radio_pipe" type="radio" name="outType" value="text"> Pipe (Press P)<br><br></td>
+      <td style="width: 175px;"><input id="radio_pipe" type="radio" name="outType" value="text" onclick="click_event();"> Pipe (Press P)<br><br></td>
       </tr>
       <tr>
       <td style="width: 150px;">Input total: </td>
