@@ -10,7 +10,7 @@
 
 <h3>Keys Outgoing UDP packet</h3>
 
-<textarea rows="14" cols="233" type="text" id="udppacket" placeholder="UDP packet"></textarea>
+<textarea rows="14" cols="233" type="text" id="udppacket" placeholder="UDP packet/Humio KeyBlock"></textarea>
 <br>
 <button onclick="decodepacket()">Decode</button>
 
@@ -24,6 +24,10 @@ Keys: <span id="keys"></span>
 <script>
 function decodepacket() {
   var packet = document.getElementById("udppacket").value;
+  if (packet.includes("-")) {
+    packet = packet.replace(/-/g,'');
+    packet = '0x' + packet;
+  }
   var packetlength = Math.floor((packet.length-146)/28);
   
   var protocol = parseInt(packet[2] + packet[3], 16);
