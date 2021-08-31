@@ -12,9 +12,11 @@
 	.then((out) => {
 	  createList(out);
 	  //document.getElementById("list").innerHTML += "default: return 'unknown';";
+	  console.log(test);
 	})
+	
 	.catch(err => { throw err });
-	console.log(test);
+	
 
 	/*function createList(arr) {
 		arr.forEach((element, index, array) => {
@@ -33,7 +35,7 @@
 
 <body>
 
-<div id="list"></div>
+<div id="list">check console.log</div>
 
 </body>
 </html>
