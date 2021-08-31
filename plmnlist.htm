@@ -15,9 +15,15 @@
 	})
 	.catch(err => { throw err });
 
-	function createList(arr) {
+	/*function createList(arr) {
 		arr.forEach((element, index, array) => {
 			var string = "case " + element.plmn + ": return '" + element.operator + ", " + element.countryCode + "';<br>";
+			document.getElementById("list").innerHTML += string;
+		});
+	}*/
+	function createList(arr) {
+		arr.forEach((element, index, array) => {
+			var string = "INSERT INTO telematicsdevice.mobile_operator (id,name) VALUES (N'"+ element.plmn +"', N'"+ element.operator +"') <br>";
 			document.getElementById("list").innerHTML += string;
 		});
 	}
