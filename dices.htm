@@ -1,0 +1,98 @@
+ <!DOCTYPE html>
+<html>
+<body>
+
+<table style="height: 79px; width: 1156px;" border="0" cellspacing="1" cellpadding="1">
+<tbody>
+<tr>
+<td style="width: 33%;">Dice sides: <input type="number" id="sides" min="1" max="1000" value="6"></td>
+<td style="width: 33%;">Rolls: <input type="number" id="rolls" min="0" value="1000000"></td>
+<td style="width: 33%;"><button type="button" onclick="roll()">Roll</button></td>
+</tr>
+<tr>
+<td style="width: 33%;">&nbsp;</td>
+<td style="width: 33%;">&nbsp;</td>
+<td style="width: 33%;">&nbsp;</td>
+</tr>
+<tr>
+<td style="width: 33%;">Single roll:</td>
+<td style="width: 33%;">Advantage:</td>
+<td style="width: 33%;">Disadvantage:</td>
+</tr>
+<tr>
+<td id="single" style="width: 34%;">&nbsp;</td>
+<td id="advantage" style="width: 34%;">&nbsp;</td>
+<td id="disadvantage" style="width: 34%;">&nbsp;</td>
+</tr>
+</tbody>
+</table>
+
+<script>
+
+function roll() {
+    //var d = 20;
+    //var number = 100000000;
+
+    var d = document.getElementById("sides").value;
+    var number = document.getElementById("rolls").value;
+    
+    var totalSingle = 0;
+    var totalAdvantage = 0;
+    var totalDisadvantage = 0;
+
+    for (let i = 1; i <= number; i++) {
+        var values = rollAdv(d);
+        totalSingle += values.d1;
+        totalAdvantage += values.dAdv;
+        totalDisadvantage += values.dDis;
+    }
+
+    document.getElementById("single").innerHTML = totalSingle/number;
+    document.getElementById("advantage").innerHTML = totalAdvantage/number;
+    document.getElementById("disadvantage").innerHTML = totalDisadvantage/number;
+
+    console.log('Single: ' + totalSingle/number);
+    console.log('Advangate: ' + totalAdvantage/number);
+    console.log('DisAdvangate: ' + totalDisadvantage/number);
+}
+
+function rollAdv(d) {
+    var d1 = getRandomInt(d);
+    var d2 = getRandomInt(d);
+    var dDis;
+    var dAdv;
+    
+    if (d1 > d2) {
+        dAdv = d1;
+        dDis = d2;
+    }
+    else {
+        dAdv = d2;
+        dDis = d1;
+    }
+//    console.log('Roll: ' + d1 + ' Advantage: ' + dAdv + ' Disatvantage: ' + dDis)
+    return {
+        d1 : d1, 
+        dAdv : dAdv, 
+        dDis : dDis
+    }
+}
+
+function getRandomInt(max) {
+  return Math.floor((Math.random() * max)+1);
+}
+
+/*function rollSimple(d) {
+    d1 = getRandomInt(d);
+    d2 = getRandomInt(d);
+
+    if (d1 > d2)
+        return d1;
+    return d2;
+}*/
+
+
+</script>
+
+</body>
+</html> 
