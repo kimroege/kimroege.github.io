@@ -83,7 +83,7 @@
 
             function findImageType(images) {
                 for (i = 0; i < images.length; i++) {
-                    if (images[i].type == imageType) {
+                    if (images[i].type == OfferImageWide) {
                         var imageUrl = images[i].url;
                     }
                 }
@@ -100,7 +100,7 @@
             function createHtmlOutput(games) {
                 var htmlString;
                 for (i = 0; i < games.length; i++) {
-                        htmlString += '<p><strong>'+games[i].title+'</strong><br />Startdate:&nbsp;'+games[i].startDate+'<br />Enddate:&nbsp;'+games[i].endDate+'<br /><a href="'+productPage+games[i].slug+'" target="_blank"><img src="'+games[i].imageUrl+'" alt="'+games[i].title+'" /></a></p>';
+                        htmlString += '<p><strong>'+games[i].title+'</strong><br />Startdate:&nbsp;'+games[i].startDate+'<br />Enddate:&nbsp;'+games[i].endDate+'<br /><a href="'+productPage+games[i].slug+'" target="_blank"><img src="'+games[i].imageUrl+'" alt="'+games[i].title+'" width="256" height="144"/></a></p>';
                     }
                 return htmlString;
                 }
