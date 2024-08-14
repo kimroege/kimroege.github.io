@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitch Themed Input Boxes</title>
+    <!-- Link to Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #191A21; /* Twitch Black */
+            color: #FFFFFF; /* Twitch White */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        .input-container {
+            position: relative;
+            display: block; /* Ensure each input is on a new line */
+            margin-bottom: 20px; /* Space between input boxes */
+        }
+
+        .input-container input {
+            width: 300px;
+            padding: 10px 70px 10px 40px; /* Adjust padding for icon placement */
+            border: 1px solid #6441A4; /* Twitch Purple */
+            border-radius: 20px; /* Rounded corners */
+            background-color: #FFFFFF; /* Twitch White */
+            color: #6441A4; /* Twitch Purple */
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+            -webkit-appearance: none; /* Hide default spinner */
+            appearance: none; /* Hide default spinner */
+        }
+
+        .input-container input::placeholder {
+            color: #6441A4; /* Twitch Purple */
+        }
+
+        .input-container input:focus {
+            border-color: #6441A4; /* Twitch Purple */
+        }
+
+        .input-container .icon, .copy-icon {
+            position: absolute;
+            top: 50%;
+            right: 20px; /* Position of the icon on the right */
+            transform: translateY(-50%);
+            color: #6441A4; /* Twitch Purple */
+            cursor: pointer; /* Change cursor to pointer for interactivity */
+        }
+
+        .submit-button {
+            display: block;
+            width: 300px;
+            padding: 10px;
+            margin: 20px auto; /* Center the button and add space around it */
+            border: none;
+            border-radius: 20px; /* Rounded corners */
+            background-color: #6441A4; /* Twitch Purple */
+            color: #FFFFFF; /* Twitch White */
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .submit-button:hover {
+            background-color: #5E4B9B; /* Darker shade of Twitch Purple for hover effect */
+        }
+
+        /* Hidden by default, will be shown on button click */
+        .hidden-inputs {
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .hidden-inputs.show {
+            opacity: 1;
+        }
+
+        /* Flex container for the new text fields */
+        .hidden-inputs-container {
+            display: flex;
+            flex-direction: column; /* Stack the new inputs vertically */
+            align-items: center;
+            gap: 20px; /* Space between the new input fields */
+        }
+
+        /* Custom tooltip styling */
+        .input-container .tooltip {
+            position: absolute;
+            top: 50%; /* Align vertically with the icon */
+            left: calc(100% + 10px); /* Position to the right of the icon */
+            transform: translateY(-50%);
+            background-color: #6441A4; /* Twitch Purple */
+            color: #FFFFFF; /* Twitch White */
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+            visibility: hidden;
+            z-index: 1; /* Ensure tooltip is above other elements */
+        }
+
+        .copy-icon:hover + .tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Twitch Themed Input Boxes</h1>
+        <div class="input-container">
+            <i class="fas fa-percent icon"></i> <!-- Percentage icon -->
+            <input type="number" id="percentage" min="0" max="100" placeholder="Percentage Seen" autocomplete="off">
+        </div>
+        <div class="input-container">
+            <i class="fas fa-hourglass-half icon"></i> <!-- Hourglass icon -->
+            <input type="number" id="hours" min="0" placeholder="Hours" autocomplete="off">
+        </div>
+        <div class="input-container">
+            <i class="fas fa-clock icon"></i> <!-- Clock icon -->
+            <input type="number" id="minutes" min="0" max="60" placeholder="Minutes" autocomplete="off">
+        </div>
+        <button class="submit-button" onclick="calculateAndDisplay()">Submit</button>
+        
+        <!-- New hidden text inputs -->
+        <div class="hidden-inputs-container hidden-inputs" id="hidden-inputs-container">
+            <div class="input-container">
+                <i class="fas fa-copy copy-icon" onclick="copyToClipboard('remaining-seconds')"></i> <!-- Copy icon for the first new input -->
+                <div class="tooltip">Copy to clipboard</div>
+                <input type="text" id="remaining-seconds" placeholder="Remaining Seconds" readonly>
+            </div>
+            <div class="input-container">
+                <i class="fas fa-tag icon"></i> <!-- Custom icon for the second input -->
+                <input type="text" id="detailed-time" placeholder="Detailed Time" readonly>
+            </div>
+            <div class="input-container">
+                <i class="fas fa-calendar icon"></i> <!-- Calendar icon for the timestamp input -->
+                <input type="text" id="timestamp" placeholder="Timestamp" readonly>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function calculateAndDisplay() {
+            // Get values from input fields and handle empty values
+            const percentage = parseFloat(document.getElementById('percentage').value) || 0;
+            const hours = parseFloat(document.getElementById('hours').value) || 0;
+            const minutes = parseFloat(document.getElementById('minutes').value) || 0;
+            
+            // Convert hours and minutes to seconds
+            const totalSeconds = (hours * 3600) + (minutes * 60);
+            
+            // Calculate remaining seconds based on percentage
+            const remainingSeconds = ((100 - percentage) * totalSeconds) / 100;
+            
+            // Prepare the command with the prefix
+            const command = `shutdown -s -t ${remainingSeconds.toFixed(0)}`;
+            
+            // Display the command in the copy input field
+            document.getElementById('remaining-seconds').value = command;
+            
+            // Calculate days, hours, minutes, and seconds
+            const days = Math.floor(remainingSeconds / (24 * 3600));
+            const hoursLeft = Math.floor((remainingSeconds % (24 * 3600)) / 3600);
+            const minutesLeft = Math.floor((remainingSeconds % 3600) / 60);
+            const secondsLeft = Math.floor(remainingSeconds % 60);
+            
+            // Build the detailed time string
+            let detailedTime = '';
+            if (days > 0) detailedTime += `${days} Day${days > 1 ? 's' : ''} `;
+            if (hoursLeft > 0 || days > 0) detailedTime += `${hoursLeft} Hour${hoursLeft > 1 ? 's' : ''} `;
+            if (minutesLeft > 0 || hoursLeft > 0 || days > 0) detailedTime += `${minutesLeft} Minute${minutesLeft > 1 ? 's' : ''} `;
+            detailedTime += `${secondsLeft} Second${secondsLeft > 1 ? 's' : ''}`;
+            
+            // Display detailed time in the new input field
+            document.getElementById('detailed-time').value = detailedTime.trim();
+            
+            // Calculate the timestamp of now + remaining seconds
+            const now = new Date();
+            const futureTime = new Date(now.getTime() + remainingSeconds * 1000);
+            
+            // Display the raw timestamp in local format with en-GB locale
+            const timestamp = futureTime.toLocaleString('en-GB');
+            document.getElementById('timestamp').value = timestamp;
+            
+            // Show the hidden inputs container
+            document.getElementById('hidden-inputs-container').classList.add('show');
+        }
+
+        function copyToClipboard(inputId) {
+            const input = document.getElementById(inputId);
+            input.select();
+            document.execCommand('copy');
+        }
+    </script>
+</body>
+</html>
