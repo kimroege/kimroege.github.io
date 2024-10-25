@@ -1,0 +1,83 @@
+<SCRIPT LANGUAGE="Javascript">
+
+function dedupe_list()
+{
+  var count = 0;
+  var mainlist = document.getElementById("listen").value;
+
+  mainlist = mainlist.replace(/^\s*[\r\n]/gm,"");  
+
+  var listvalues = new Array();
+  var newlist = new Array();
+
+  listvalues = mainlist.split("\n");
+  console.log(listvalues.length);
+
+	
+  var hash = new Object();
+	
+  for (var i=0; i<listvalues.length; i++)
+  {
+    if (hash[listvalues[i].toLowerCase()] != 1)
+    {
+      newlist = newlist.concat(listvalues[i]);
+      hash[listvalues[i].toLowerCase()] = 1
+    }
+    else { count++; }
+  }
+  document.getElementById("listen").value = newlist.join("\r\n");
+}
+
+function listlines() {
+  dedupe_list()
+  sortedlist = document.getElementById("listen").value;
+  sortedlist = sortedlist.replace(/[\n\r](?!\w)/gi,'');
+  sortedlist = sortedlist.replace(/ /g, "");	
+  sortedlist = sortedlist.replace(/\n/g, "\n");	
+  sortedlist = sortedlist.replace(/\|/g, "\n");	
+  sortedlist = sortedlist.replace(/,/g, "\n");	
+  document.getElementById("listen").value = sortedlist;
+}
+
+function listpipe() {
+  dedupe_list()
+  sortedlist = document.getElementById("listen").value;
+  sortedlist = sortedlist.replace(/[\n\r](?!\w)/gi,'');
+  sortedlist = sortedlist.replace(/ /g, "");	
+  sortedlist = sortedlist.replace(/,/g, "|");	
+  sortedlist = sortedlist.replace(/\n/g, "|");	
+  document.getElementById("listen").value = sortedlist;
+}
+
+function listcomma() {
+  dedupe_list()
+  sortedlist = document.getElementById("listen").value;
+  sortedlist = sortedlist.replace(/[\n\r](?!\w)/gi,'');
+  sortedlist = sortedlist.replace(/ /g, "");	
+  sortedlist = sortedlist.replace(/\n/g, ",");	
+  sortedlist = sortedlist.replace(/\|/g, ",");	
+  document.getElementById("listen").value = sortedlist;
+}
+
+</SCRIPT>
+
+<center>
+<form action="" name="form1" id="form1">
+<table border=1 cellpadding=5>
+<tr>
+<td>
+<p><textarea name="mainlist" id="listen" COLS=79 ROWS=20></textarea></td>
+</tr>
+<tr><td align="center">
+<input type="button" onClick="listlines();" value="Linier">		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<input type="button" onClick="listpipe();" value="Pipe">	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<input type="button" onClick="listcomma();" value="Komma">	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</td></tr>
+</table>
+</center>
+</form>
+
+<center>
+<script>
+document.getElementById("listen").focus();
+</script>
