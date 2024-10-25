@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transform Input</title>
+  <style>
+    .container {
+      display: flex;
+      gap: 10px;
+      margin: 20px;
+      align-items: flex-start;
+    }
+
+    textarea {
+      padding: 8px;
+      font-size: 16px;
+      width: 500px;
+      height: 600px; /* Set fixed height for both text areas to 600px */
+      resize: none; /* Prevent resizing */
+      text-align: left;
+    }
+
+    #output {
+      resize: vertical; /* Allow vertical resizing for output only */
+    }
+
+    button {
+      padding: 8px 12px;
+      font-size: 16px;
+      cursor: pointer;
+      align-self: flex-start;
+      width: 200px;
+      text-align: center;
+      display: flex;
+      justify-content: center;
+      margin-bottom: 10px; /* Add spacing between buttons */
+    }
+
+    .options {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    #summary {
+      margin-top: 10px;
+    }
+
+    .checkbox-container {
+      margin-top: 15px; /* Adjust this value for more spacing */
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <textarea id="input1" placeholder="Enter values separated by new lines"></textarea>
+    <div class="options">
+      <button onclick="formatWithQuotes()">With Quotes (T)</button>
+      <button onclick="formatWithoutQuotes()">Without Quotes (N)</button>
+      <button onclick="formatWithPipes()">With Pipes (P)</button>
+      <button onclick="copyToClipboard()">Copy Output (C)</button>
+      <div class="checkbox-container">
+        <label>
+          <input type="checkbox" id="autoCopy"> Auto-copy to clipboard
+        </label>
+      </div>
+      <button onclick="saveAutoCopyState()">Save Auto-copy State</button>
+      <div id="summary"></div>
+    </div>
+    <textarea id="output" placeholder="Formatted Output" oninput="autoResize(this)"></textarea>
+  </div>
+
+  <script>
+    window.onload = function() {
+      const autoCopyCheckbox = document.getElementById("autoCopy");
+      const savedState = localStorage.getItem("autoCopy");
+      if (savedState === "true") {
+        autoCopyCheckbox.checked = true;
+      }
+    };
+
+    document.addEventListener("keydown", function(event) {
+      if (event.key === 'n' || event.key === 'N') {
+        event.preventDefault();
+        formatWithoutQuotes();
+      } else if (event.key === 't' || event.key === 'T') {
+        event.preventDefault();
+        formatWithQuotes();
+      } else if (event.key === 'p' || event.key === 'P') {
+        event.preventDefault();
+        formatWithPipes();
+      } else if (event.key === 'c' || event.key === 'C') {
+        event.preventDefault();
+        copyToClipboard();
+      }
+    });
+
+    function formatWithQuotes() {
+      const uniqueLines = getUniqueLines();
+      const formatted = uniqueLines.map(line => `'${line}'`).join(','); // No space after comma
+      document.getElementById("output").value = formatted;
+      autoResize(document.getElementById("output"));
+      if (document.getElementById("autoCopy").checked) {
+        copyToClipboard();
+      }
+    }
+
+    function formatWithoutQuotes() {
+      const uniqueLines = getUniqueLines();
+      const formatted = uniqueLines.join(','); // No space after comma
+      document.getElementById("output").value = formatted;
+      autoResize(document.getElementById("output"));
+      if (document.getElementById("autoCopy").checked) {
+        copyToClipboard();
+      }
+    }
+
+    function formatWithPipes() {
+      const uniqueLines = getUniqueLines();
+      const formatted = uniqueLines.join('|'); // No space before and after pipe
+      document.getElementById("output").value = formatted;
+      autoResize(document.getElementById("output"));
+      if (document.getElementById("autoCopy").checked) {
+        copyToClipboard();
+      }
+    }
+
+    function copyToClipboard() {
+      const output = document.getElementById("output");
+      output.select();
+      output.setSelectionRange(0, 99999);
+      document.execCommand("copy");
+    }
+
+    function saveAutoCopyState() {
+      const autoCopyCheckbox = document.getElementById("autoCopy");
+      localStorage.setItem("autoCopy", autoCopyCheckbox.checked);
+    }
+
+    function autoResize(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    }
+
+    function getUniqueLines() {
+      const input1 = document.getElementById("input1").value;
+      const lines = input1.split('\n').map(line => line.trim()).filter(line => line);
+      const uniqueLines = [...new Set(lines)];
+      const duplicateCount = lines.length - uniqueLines.length;
+      document.getElementById("summary").innerText = `Unique Values: ${uniqueLines.length}, Duplicates: ${duplicateCount}`;
+      return uniqueLines;
+    }
+  </script>
+</body>
+</html>
