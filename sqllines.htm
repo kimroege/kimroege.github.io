@@ -3,7 +3,7 @@
 <html>
 <head>
 <title>SQL COPY/PASTE</title>
-
+<link rel="stylesheet" href="dark-theme.css" id="dark-theme-style">
 
 <style>
 body {
@@ -126,9 +126,45 @@ function copyOutput() {
 }
 </SCRIPT>
 
+<script LANGUAGE="Javascript">
+    function setDarkTheme(isDark) {
+        const body = document.body;
+        const themeToggleButton = document.getElementById('theme-toggle-button');
+        if (isDark) {
+            body.classList.add("dark-mode");
+            localStorage.setItem("theme", "dark");
+            if (themeToggleButton) themeToggleButton.textContent = "Toggle Light Theme";
+        } else {
+            body.classList.remove("dark-mode");
+            localStorage.setItem("theme", "light");
+            if (themeToggleButton) themeToggleButton.textContent = "Toggle Dark Theme";
+        }
+    }
+
+    function toggleTheme() {
+        if (localStorage.getItem("theme") === "dark") {
+            setDarkTheme(false);
+        } else {
+            setDarkTheme(true);
+        }
+    }
+
+    // Apply saved theme on load
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedTheme = localStorage.getItem("theme");
+        if (savedTheme === "dark") {
+            setDarkTheme(true);
+        } else {
+            // Optional: default to light theme if no preference or if it's explicitly 'light'
+            setDarkTheme(false); 
+        }
+    });
+</script>
+
 </head>
 <body onload='document.getElementById("listen").focus();'>
 
+<button onclick="toggleTheme()" id="theme-toggle-button">Toggle Dark Theme</button>
 <table>
 <tbody>
 <tr>

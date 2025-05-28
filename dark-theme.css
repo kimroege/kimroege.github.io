@@ -1,0 +1,39 @@
+body.dark-mode {
+    background-color: #121212;
+    color: #FFFFFF;
+}
+
+body.dark-mode a:link {
+    color: #BB86FC;
+}
+
+body.dark-mode a:visited {
+    color: #BB86FC;
+}
+
+body.dark-mode a:hover {
+    color: #FFFFFF;
+}
+
+body.dark-mode a:active {
+    color: #FFFFFF;
+}
+
+/* Add styles for other elements in sqllines.htm as needed */
+/* For example, for textareas and buttons */
+body.dark-mode textarea {
+    background-color: #333333;
+    color: #FFFFFF;
+    border: 1px solid #555555;
+}
+
+body.dark-mode button {
+    background-color: #BB86FC;
+    color: #121212;
+    border: 1px solid #BB86FC;
+}
+
+body.dark-mode button:hover {
+    background-color: #3700B3;
+    color: #FFFFFF;
+}
