@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Danmarkskort over Folkeskolers Karaktersnit</title>
+    <title>Danmarkskort over Folkeskolers Karaktersnit - Aalborg Kommune</title>
     
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -56,7 +56,7 @@
 <body>
 
 <header>
-    <h1>Folkeskolers Karaktersnit i Danmark</h1>
+    <h1>Folkeskolers Karaktersnit - Aalborg Kommune</h1>
     <div id="status">Klargør kort...</div>
 </header>
 
@@ -83,17 +83,18 @@
             </div>
         </div>
 
-        <button id="download-btn" class="btn-download">💾 Download JSON-fil</button>
+        <button id="download-btn" class="btn-download">💾 Download Aalborg JSON</button>
 
         <div id="unplaced-section">
-            <h3 style="margin-bottom: 5px;">Uplacerede Skoler</h3>
+            <h3 style="margin-bottom: 5px;">Uplacerede Skoler (Aalborg)</h3>
             <div id="unplaced-container"><em>Ingen uplacerede endnu...</em></div>
         </div>
     </div>
 </div>
 
 <script>
-    const map = L.map('map').setView([56.0, 11.6], 7);
+    // Initialisér kortet centreret over Aalborg Kommune
+    const map = L.map('map').setView([57.048, 9.918], 11);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap bidragsydere',
@@ -110,7 +111,7 @@
         return '#fa5252';
     }
 
-    // Geokodning via OpenStreetMap Nominatim uden kommune-fallback
+    // Geokodning via OpenStreetMap Nominatim uden fallback til midte
     async function fetchCoordsPræcis(navn, kommune, adresseManuel = null) {
         let forsoeg = 0;
         const maxForsoeg = 3;
@@ -159,10 +160,10 @@
         skole.lng = coords[1];
 
         L.circleMarker(coords, {
-            radius: 6,
+            radius: 7,
             fillColor: getMarkerColor(snit),
             color: '#ffffff',
-            weight: 1,
+            weight: 1.5,
             fillOpacity: 0.85
         })
         .bindPopup(`
@@ -188,8 +189,12 @@
             const response = await fetch('folkeskoler_2026.json');
             if (!response.ok) throw new Error('Kunne ikke hente filen folkeskoler_2026.json');
             
-            const skoler = await response.json();
-            statusEl.innerText = `Placerer ${skoler.length} skoler på kortet...`;
+            const skolerAlle = await response.json();
+            
+            // --- FILTER: KUN AALBORG KOMMUNE ---
+            const skoler = skolerAlle.filter(s => s.beliggenhedskommune === "Aalborg");
+            
+            statusEl.innerText = `Placerer ${skoler.length} skoler i Aalborg Kommune...`;
 
             let placedCount = 0;
             let unplacedCount = 0;
@@ -200,7 +205,6 @@
                 const navn = skole.institution;
                 const kommune = skole.beliggenhedskommune;
 
-                // Kun præcis opslag (INGEN kommune-fallback!)
                 const coords = await fetchCoordsPræcis(navn, kommune);
 
                 if (coords) {
@@ -213,7 +217,7 @@
                     unplacedCount++;
                     unplacedCountEl.innerText = unplacedCount;
 
-                    // Tilføj skole til listen over uplacerede skoler i sidepanelet
+                    // Tilføj til listen over uplacerede i sidepanelet
                     const card = document.createElement('div');
                     card.className = 'unplaced-card';
                     card.id = `unplaced-${skole.institutionsnummer}`;
@@ -221,7 +225,7 @@
                         <div class="unplaced-title">${navn}</div>
                         <div>${kommune} Kommune</div>
                         <div class="unplaced-input-group">
-                            <input type="text" id="input-${skole.institutionsnummer}" placeholder="Indtast adresse (fx Vestergade 12, ${kommune})">
+                            <input type="text" id="input-${skole.institutionsnummer}" placeholder="Indtast adresse (fx Vestergade 12, Aalborg)">
                             <button onclick="opdaterManuelt('${skole.institutionsnummer}')">Opdatér</button>
                         </div>
                     `;
@@ -229,13 +233,13 @@
                 }
 
                 opdateredeSkoler.push(skole);
-                statusEl.innerText = `Placerer skoler... (${i + 1}/${skoler.length})`;
+                statusEl.innerText = `Placerer skoler i Aalborg... (${i + 1}/${skoler.length})`;
 
-                // 1.1 sekunders pause for at overholde Nominatims grænse
+                // 1.1 sekunders pause for at undgå rate-limits
                 await new Promise(r => setTimeout(r, 1100));
             }
 
-            statusEl.innerText = 'Færdig! Alle skoler behandlet.';
+            statusEl.innerText = `Færdig! ${skoler.length} skoler i Aalborg behandlet.`;
 
             // Aktiver Download-knap
             downloadBtn.style.display = 'block';
@@ -247,7 +251,7 @@
         }
     }
 
-    // Funktion til at opdatere en uplaceret skole manuelt
+    // Manuel opdatering for uplacerede skoler
     window.opdaterManuelt = async function(instNummer) {
         const inputEl = document.getElementById(`input-${instNummer}`);
         const adresse = inputEl.value.trim();
@@ -265,34 +269,31 @@
         if (coords) {
             tilfoejMarkerTilKort(skoleObj, coords);
 
-            // Opdater tællere
             const countEl = document.getElementById('count-display');
             const unplacedCountEl = document.getElementById('unplaced-count-display');
             countEl.innerText = parseInt(countEl.innerText) + 1;
             unplacedCountEl.innerText = parseInt(unplacedCountEl.innerText) - 1;
 
-            // Fjern fra listen over uplacerede
             const card = document.getElementById(`unplaced-${instNummer}`);
             if (card) card.remove();
 
-            // Panorér kortet hen til den nyligt placerede skole
             map.setView(coords, 14);
         } else {
-            alert(`Kunne ikke finde adressen "${adresse}". Prøv at justere søgningen.`);
+            alert(`Kunne ikke finde adressen "${adresse}". Prøv at tilføje husnummer eller postnummer.`);
             inputEl.disabled = false;
         }
     };
 
     function downloadJSON() {
         const jsonString = JSON.stringify(opdateredeSkoler, null, 2);
-        console.log("=== KOORDINATER DUMP ===");
+        console.log("=== AALBORG KOORDINATER DUMP ===");
         console.log(jsonString);
 
         const blob = new Blob([jsonString], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'folkeskoler_med_koordinater.json';
+        a.download = 'aalborg_folkeskoler_med_koordinater.json';
         a.click();
         URL.revokeObjectURL(url);
     }
