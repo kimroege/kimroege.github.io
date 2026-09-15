@@ -15,7 +15,7 @@
         
         header { background: #1a252f; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
         h1 { margin: 0; font-size: 1.2rem; }
-        #status { font-size: 0.9rem; color: #bdc3c7; }
+        #status { font-size: 0.9rem; color: #4dabf7; font-weight: 500; }
 
         #container { display: flex; flex: 1; overflow: hidden; }
         #map { flex: 1; height: 100%; }
@@ -50,26 +50,20 @@
             <h3>Placerede Skoler</h3>
             <div id="count-display">0</div>
         </div>
-        <div class="stat-card">
-            <h3>Fejlede/Avisviste Søgninger</h3>
-            <div id="fail-display">0</div>
-        </div>
     </div>
 </div>
 
 <script>
-    // 1. Initialisér kortet med OpenStreetMap (kræver INGEN API-nøgle)
     const map = L.map('map').setView([56.0, 11.6], 7);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> bidragsydere',
+        attribution: '&copy; OpenStreetMap bidragsydere',
         maxZoom: 19
     }).addTo(map);
 
-    // Hjælpefunktion til farvelægning efter karakter
     function getMarkerColor(snitStr) {
         if (!snitStr) return '#868e96';
-        const snit = parseFloat(snitStr.replace(',', '.'));
+        const snit = parseFloat(String(snitStr).replace(',', '.'));
         if (isNaN(snit)) return '#868e96';
         if (snit >= 8.5) return '#2b8a3e';
         if (snit >= 7.5) return '#40c057';
@@ -77,96 +71,88 @@
         return '#fa5252';
     }
 
-    // Hjælpefunktion til geokodning hos DAWA med fallback
-    async function getCoordinates(navn, kommune) {
-        // Prøv 1: Søg på skole og kommune
+    // Geokodning via OpenStreetMap Nominatim (Gratis & stabil)
+    async function fetchCoordsNominatim(navn, kommune) {
         try {
-            let url = `https://api.dawa.dk/adgangsadresser?q=${encodeURIComponent(navn + ' ' + kommune)}&per_side=1`;
-            let res = await fetch(url);
+            // Prøv 1: Skolenavn + Kommune + Danmark
+            let query = encodeURIComponent(`${navn}, ${kommune}, Danmark`);
+            let url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`;
+            
+            let res = await fetch(url, { headers: { 'User-Agent': 'FolkeskoleKortApp/1.0' } });
             let data = await res.json();
             
-            if (data && data.length > 0 && data[0].adgangspunkt) {
-                return { lat: data[0].adgangspunkt.koordinater[1], lng: data[0].adgangspunkt.koordinater[0] };
+            if (data && data.length > 0) {
+                return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
             }
 
-            // Prøv 2: Søg kun på kommune (placeres i midten af kommunen som fallback)
-            url = `https://api.dawa.dk/kommuner?navn=${encodeURIComponent(kommune)}`;
-            res = await fetch(url);
+            // Prøv 2: Fallback kun til Kommune
+            query = encodeURIComponent(`${kommune} Kommune, Danmark`);
+            url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`;
+            res = await fetch(url, { headers: { 'User-Agent': 'FolkeskoleKortApp/1.0' } });
             data = await res.json();
-            if (data && data.length > 0 && data[0].visueltcenter) {
-                return { lat: data[0].visueltcenter[1], lng: data[0].visueltcenter[0] };
+            if (data && data.length > 0) {
+                return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
             }
-        } catch (err) {
-            console.warn(`Netværksfejl under søgning på: ${navn}`, err);
+        } catch (e) {
+            console.warn(`Fejl ved søgning på ${navn}:`, e);
         }
         return null;
     }
 
-    // 2. Indlæs og behandl skoler
     async function loadSchoolData() {
         const statusEl = document.getElementById('status');
         const countEl = document.getElementById('count-display');
-        const failEl = document.getElementById('fail-display');
 
         try {
-            statusEl.innerText = 'Henter JSON-fil...';
+            statusEl.innerText = 'Henter folkeskoler_2026.json...';
             const response = await fetch('folkeskoler_2026.json');
+            if (!response.ok) throw new Error('Kunne ikke hente filen folkeskoler_2026.json');
             
-            if (!response.ok) {
-                throw new Error(`Kunne ikke finde filen folkeskoler_2026.json (Status ${response.status})`);
-            }
-
             const skoler = await response.json();
-            statusEl.innerText = `Indlæste ${skoler.length} skoler. Placerer på kortet...`;
+            statusEl.innerText = `Placerer ${skoler.length} skoler på kortet...`;
 
-            let successCount = 0;
-            let failCount = 0;
+            let count = 0;
 
-            for (const skole of skoler) {
+            for (let i = 0; i < skoler.length; i++) {
+                const skole = skoler[i];
                 const navn = skole.institution;
                 const kommune = skole.beliggenhedskommune;
                 const snit = skole['gennemsnit-bundneprøver'] || 'Ikke oplyst';
-                const ikkeBestaaet = skole['02danskmat'] || 'N/A';
 
-                const coords = await getCoordinates(navn, kommune);
+                const coords = await fetchCoordsNominatim(navn, kommune);
 
                 if (coords) {
-                    const color = getMarkerColor(snit);
-                    
-                    L.circleMarker([coords.lat, coords.lng], {
+                    L.circleMarker(coords, {
                         radius: 6,
-                        fillColor: color,
+                        fillColor: getMarkerColor(snit),
                         color: '#ffffff',
                         weight: 1,
-                        opacity: 1,
-                        fillOpacity: 0.8
+                        fillOpacity: 0.85
                     })
                     .bindPopup(`
                         <div style="font-size:13px;">
-                            <strong style="font-size:14px;">${navn}</strong><br>
-                            <span style="color:#666;">Kommune: ${kommune}</span><br><br>
-                            <b>Gennemsnit (bundne prøver):</b> ${snit}<br>
-                            <b>Ej bestået dansk/mat:</b> ${ikkeBestaaet}
+                            <strong>${navn}</strong><br>
+                            <span style="color:#666">${kommune} Kommune</span><br><br>
+                            <b>Karaktersnit:</b> ${snit}<br>
+                            <b>Ej bestået dansk/mat:</b> ${skole['02danskmat'] || 'N/A'}
                         </div>
                     `)
                     .addTo(map);
 
-                    successCount++;
-                    countEl.innerText = successCount;
-                } else {
-                    failCount++;
-                    failEl.innerText = failCount;
+                    count++;
+                    countEl.innerText = count;
                 }
 
-                // Lille forsinkelse (100 ms) så vi ikke udløser rate-limits
-                await new Promise(r => setTimeout(r, 100));
+                statusEl.innerText = `Placerer skoler... (${i + 1}/${skoler.length})`;
+
+                // 1.1 sekund pause for at respektere Nominatims forbrugsgrænser (1 request/sek)
+                await new Promise(r => setTimeout(r, 1100));
             }
 
-            statusEl.innerText = 'Kortlægning færdig!';
-
-        } catch (error) {
-            statusEl.innerText = `Fejl: ${error.message}`;
-            console.error(error);
+            statusEl.innerText = 'Færdig! Alle skoler indlæst.';
+        } catch (err) {
+            statusEl.innerText = `Fejl: ${err.message}`;
+            console.error(err);
         }
     }
 
