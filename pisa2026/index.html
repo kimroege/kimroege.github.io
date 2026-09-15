@@ -20,18 +20,17 @@
         #container { display: flex; flex: 1; overflow: hidden; }
         #map { flex: 1; height: 100%; }
         
-        #sidebar { width: 300px; background: #f8f9fa; border-left: 1px solid #dee2e6; padding: 20px; overflow-y: auto; }
+        #sidebar { width: 340px; background: #f8f9fa; border-left: 1px solid #dee2e6; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
         .legend-item { display: flex; align-items: center; margin-bottom: 8px; font-size: 0.9rem; }
         .color-box { width: 16px; height: 16px; border-radius: 50%; margin-right: 10px; flex-shrink: 0; }
         
-        .stat-card { background: white; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px; margin-top: 15px; }
+        .stat-card { background: white; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px; }
         .stat-card h3 { margin: 0 0 5px 0; font-size: 0.85rem; color: #6c757d; }
         .stat-card div { font-size: 1.3rem; font-weight: bold; color: #212529; }
 
         .btn-download {
             display: none;
             width: 100%;
-            margin-top: 15px;
             padding: 10px;
             background: #2b8a3e;
             color: white;
@@ -43,6 +42,15 @@
             text-align: center;
         }
         .btn-download:hover { background: #237032; }
+
+        /* Uplacerede skoler sektion */
+        #unplaced-container { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+        .unplaced-card { background: white; border: 1px solid #ffc9c9; border-radius: 6px; padding: 10px; font-size: 0.85rem; }
+        .unplaced-title { font-weight: bold; color: #c92a2a; margin-bottom: 4px; }
+        .unplaced-input-group { display: flex; gap: 5px; margin-top: 6px; }
+        .unplaced-input-group input { flex: 1; padding: 5px 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.8rem; }
+        .unplaced-input-group button { padding: 5px 10px; background: #228be6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: bold; }
+        .unplaced-input-group button:hover { background: #1c7ed6; }
     </style>
 </head>
 <body>
@@ -55,19 +63,32 @@
 <div id="container">
     <div id="map"></div>
     <div id="sidebar">
-        <h3>Karakterskala</h3>
-        <div class="legend-item"><div class="color-box" style="background:#2b8a3e"></div> Snit ≥ 8,5</div>
-        <div class="legend-item"><div class="color-box" style="background:#40c057"></div> Snit 7,5 - 8,4</div>
-        <div class="legend-item"><div class="color-box" style="background:#fab005"></div> Snit 6,5 - 7,4</div>
-        <div class="legend-item"><div class="color-box" style="background:#fa5252"></div> Snit < 6,5</div>
-        <div class="legend-item"><div class="color-box" style="background:#868e96"></div> Ingen data / Ukendt</div>
+        <div>
+            <h3 style="margin-top:0;">Karakterskala</h3>
+            <div class="legend-item"><div class="color-box" style="background:#2b8a3e"></div> Snit ≥ 8,5</div>
+            <div class="legend-item"><div class="color-box" style="background:#40c057"></div> Snit 7,5 - 8,4</div>
+            <div class="legend-item"><div class="color-box" style="background:#fab005"></div> Snit 6,5 - 7,4</div>
+            <div class="legend-item"><div class="color-box" style="background:#fa5252"></div> Snit < 6,5</div>
+            <div class="legend-item"><div class="color-box" style="background:#868e96"></div> Ingen data / Ukendt</div>
+        </div>
 
-        <div class="stat-card">
-            <h3>Placerede Skoler</h3>
-            <div id="count-display">0</div>
+        <div style="display: flex; gap: 10px;">
+            <div class="stat-card" style="flex: 1;">
+                <h3>Placerede</h3>
+                <div id="count-display">0</div>
+            </div>
+            <div class="stat-card" style="flex: 1;">
+                <h3>Uplacerede</h3>
+                <div id="unplaced-count-display">0</div>
+            </div>
         </div>
 
         <button id="download-btn" class="btn-download">💾 Download JSON-fil</button>
+
+        <div id="unplaced-section">
+            <h3 style="margin-bottom: 5px;">Uplacerede Skoler</h3>
+            <div id="unplaced-container"><em>Ingen uplacerede endnu...</em></div>
+        </div>
     </div>
 </div>
 
@@ -89,49 +110,77 @@
         return '#fa5252';
     }
 
-    // Geokodning via Danmarks Dataforsyningen API
-    async function fetchCoordsDatafordeleren(navn, kommune) {
-        try {
-            // 1. Søg på skolenavn + kommune
-            const q = encodeURIComponent(`${navn} ${kommune}`);
-            let url = `https://api.dataforsyningen.dk/adgangsadresser?q=${q}&per_side=1`;
-            
-            let res = await fetch(url);
-            
-            // Hvis vi modtager 429 (Rate-limit), venter koden 2 sekunder og prøver igen
-            if (res.status === 429) {
-                console.warn(`429 ramt ved ${navn}. Venter 2 sekunder...`);
+    // Geokodning via OpenStreetMap Nominatim uden kommune-fallback
+    async function fetchCoordsPræcis(navn, kommune, adresseManuel = null) {
+        let forsoeg = 0;
+        const maxForsoeg = 3;
+
+        const queryText = adresseManuel ? adresseManuel : `${navn}, ${kommune}, Danmark`;
+        const query = encodeURIComponent(queryText);
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`;
+
+        while (forsoeg < maxForsoeg) {
+            try {
+                const res = await fetch(url, { 
+                    headers: { 'User-Agent': 'FolkeskoleKortVisualisering/1.0' } 
+                });
+
+                if (res.status === 429) {
+                    forsoeg++;
+                    const ventetid = forsoeg * 2500;
+                    console.warn(`429 Modtaget for "${queryText}". Venter ${ventetid / 1000}s...`);
+                    await new Promise(r => setTimeout(r, ventetid));
+                    continue;
+                }
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.length > 0) {
+                        return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+                    }
+                }
+                break;
+            } catch (e) {
+                forsoeg++;
                 await new Promise(r => setTimeout(r, 2000));
-                res = await fetch(url);
             }
-
-            if (res.ok) {
-                const data = await res.json();
-                if (data && data.length > 0 && data[0].adgangspunkt) {
-                    const coords = data[0].adgangspunkt.koordinater;
-                    return [coords[1], coords[0]]; // [lat, lng]
-                }
-            }
-
-            // 2. Fallback til kommunes midte hvis skolenavnet ikke findes direkte
-            const urlKommune = `https://api.dataforsyningen.dk/kommuner?navn=${encodeURIComponent(kommune)}`;
-            let resKommune = await fetch(urlKommune);
-            if (resKommune.ok) {
-                const dataKommune = await resKommune.json();
-                if (dataKommune && dataKommune.length > 0 && dataKommune[0].visueltcenter) {
-                    const coords = dataKommune[0].visueltcenter;
-                    return [coords[1], coords[0]];
-                }
-            }
-        } catch (e) {
-            console.warn(`Fejl ved søgning på ${navn}:`, e);
         }
         return null;
+    }
+
+    let opdateredeSkoler = [];
+
+    function tilfoejMarkerTilKort(skole, coords) {
+        const navn = skole.institution;
+        const kommune = skole.beliggenhedskommune;
+        const snit = skole['gennemsnit-bundneprøver'] || 'Ikke oplyst';
+
+        skole.lat = coords[0];
+        skole.lng = coords[1];
+
+        L.circleMarker(coords, {
+            radius: 6,
+            fillColor: getMarkerColor(snit),
+            color: '#ffffff',
+            weight: 1,
+            fillOpacity: 0.85
+        })
+        .bindPopup(`
+            <div style="font-size:13px;">
+                <strong>${navn}</strong><br>
+                <span style="color:#666">${kommune} Kommune</span><br><br>
+                <b>Karaktersnit:</b> ${snit}<br>
+                <b>Ej bestået dansk/mat:</b> ${skole['02danskmat'] || 'N/A'}
+            </div>
+        `)
+        .addTo(map);
     }
 
     async function loadSchoolData() {
         const statusEl = document.getElementById('status');
         const countEl = document.getElementById('count-display');
+        const unplacedCountEl = document.getElementById('unplaced-count-display');
+        const unplacedContainer = document.getElementById('unplaced-container');
         const downloadBtn = document.getElementById('download-btn');
 
         try {
@@ -142,76 +191,110 @@
             const skoler = await response.json();
             statusEl.innerText = `Placerer ${skoler.length} skoler på kortet...`;
 
-            let count = 0;
-            const opdateredeSkoler = [];
+            let placedCount = 0;
+            let unplacedCount = 0;
+            unplacedContainer.innerHTML = '';
 
             for (let i = 0; i < skoler.length; i++) {
                 const skole = { ...skoler[i] };
                 const navn = skole.institution;
                 const kommune = skole.beliggenhedskommune;
-                const snit = skole['gennemsnit-bundneprøver'] || 'Ikke oplyst';
 
-                const coords = await fetchCoordsDatafordeleren(navn, kommune);
+                // Kun præcis opslag (INGEN kommune-fallback!)
+                const coords = await fetchCoordsPræcis(navn, kommune);
 
                 if (coords) {
-                    skole.lat = coords[0];
-                    skole.lng = coords[1];
-
-                    L.circleMarker(coords, {
-                        radius: 6,
-                        fillColor: getMarkerColor(snit),
-                        color: '#ffffff',
-                        weight: 1,
-                        fillOpacity: 0.85
-                    })
-                    .bindPopup(`
-                        <div style="font-size:13px;">
-                            <strong>${navn}</strong><br>
-                            <span style="color:#666">${kommune} Kommune</span><br><br>
-                            <b>Karaktersnit:</b> ${snit}<br>
-                            <b>Ej bestået dansk/mat:</b> ${skole['02danskmat'] || 'N/A'}
-                        </div>
-                    `)
-                    .addTo(map);
-
-                    count++;
-                    countEl.innerText = count;
+                    tilfoejMarkerTilKort(skole, coords);
+                    placedCount++;
+                    countEl.innerText = placedCount;
                 } else {
                     skole.lat = null;
                     skole.lng = null;
+                    unplacedCount++;
+                    unplacedCountEl.innerText = unplacedCount;
+
+                    // Tilføj skole til listen over uplacerede skoler i sidepanelet
+                    const card = document.createElement('div');
+                    card.className = 'unplaced-card';
+                    card.id = `unplaced-${skole.institutionsnummer}`;
+                    card.innerHTML = `
+                        <div class="unplaced-title">${navn}</div>
+                        <div>${kommune} Kommune</div>
+                        <div class="unplaced-input-group">
+                            <input type="text" id="input-${skole.institutionsnummer}" placeholder="Indtast adresse (fx Vestergade 12, ${kommune})">
+                            <button onclick="opdaterManuelt('${skole.institutionsnummer}')">Opdatér</button>
+                        </div>
+                    `;
+                    unplacedContainer.appendChild(card);
                 }
 
                 opdateredeSkoler.push(skole);
                 statusEl.innerText = `Placerer skoler... (${i + 1}/${skoler.length})`;
 
-                // 100ms pause er rigeligt til Dataforsyningen API'et
-                await new Promise(r => setTimeout(r, 100));
+                // 1.1 sekunders pause for at overholde Nominatims grænse
+                await new Promise(r => setTimeout(r, 1100));
             }
 
             statusEl.innerText = 'Færdig! Alle skoler behandlet.';
 
-            // 1. Dump filen til konsollen
-            const jsonString = JSON.stringify(opdateredeSkoler, null, 2);
-            console.log("=== KOORDINATER DUMP START ===");
-            console.log(jsonString);
-            console.log("=== KOORDINATER DUMP SLUT ===");
-
-            // 2. Aktiver Download-knap
+            // Aktiver Download-knap
             downloadBtn.style.display = 'block';
-            downloadBtn.onclick = () => {
-                const blob = new Blob([jsonString], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'folkeskoler_med_koordinater.json';
-                a.click();
-                URL.revokeObjectURL(url);
-            };
+            downloadBtn.onclick = () => downloadJSON();
 
         } catch (err) {
             statusEl.innerText = `Fejl: ${err.message}`;
             console.error(err);
         }
+    }
+
+    // Funktion til at opdatere en uplaceret skole manuelt
+    window.opdaterManuelt = async function(instNummer) {
+        const inputEl = document.getElementById(`input-${instNummer}`);
+        const adresse = inputEl.value.trim();
+        if (!adresse) {
+            alert('Indtast venligst en adresse.');
+            return;
+        }
+
+        const skoleObj = opdateredeSkoler.find(s => s.institutionsnummer === instNummer);
+        if (!skoleObj) return;
+
+        inputEl.disabled = true;
+        const coords = await fetchCoordsPræcis(skoleObj.institution, skoleObj.beliggenhedskommune, adresse);
+
+        if (coords) {
+            tilfoejMarkerTilKort(skoleObj, coords);
+
+            // Opdater tællere
+            const countEl = document.getElementById('count-display');
+            const unplacedCountEl = document.getElementById('unplaced-count-display');
+            countEl.innerText = parseInt(countEl.innerText) + 1;
+            unplacedCountEl.innerText = parseInt(unplacedCountEl.innerText) - 1;
+
+            // Fjern fra listen over uplacerede
+            const card = document.getElementById(`unplaced-${instNummer}`);
+            if (card) card.remove();
+
+            // Panorér kortet hen til den nyligt placerede skole
+            map.setView(coords, 14);
+        } else {
+            alert(`Kunne ikke finde adressen "${adresse}". Prøv at justere søgningen.`);
+            inputEl.disabled = false;
+        }
+    };
+
+    function downloadJSON() {
+        const jsonString = JSON.stringify(opdateredeSkoler, null, 2);
+        console.log("=== KOORDINATER DUMP ===");
+        console.log(jsonString);
+
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'folkeskoler_med_koordinater.json';
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
     loadSchoolData();
