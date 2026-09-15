@@ -89,24 +89,39 @@
         return '#fa5252';
     }
 
-    async function fetchCoordsNominatim(navn, kommune) {
+    // Geokodning via Danmarks Dataforsyningen API
+    async function fetchCoordsDatafordeleren(navn, kommune) {
         try {
-            let query = encodeURIComponent(`${navn}, ${kommune}, Danmark`);
-            let url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`;
+            // 1. Søg på skolenavn + kommune
+            const q = encodeURIComponent(`${navn} ${kommune}`);
+            let url = `https://api.dataforsyningen.dk/adgangsadresser?q=${q}&per_side=1`;
             
-            let res = await fetch(url, { headers: { 'User-Agent': 'FolkeskoleKortApp/1.0' } });
-            let data = await res.json();
+            let res = await fetch(url);
             
-            if (data && data.length > 0) {
-                return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+            // Hvis vi modtager 429 (Rate-limit), venter koden 2 sekunder og prøver igen
+            if (res.status === 429) {
+                console.warn(`429 ramt ved ${navn}. Venter 2 sekunder...`);
+                await new Promise(r => setTimeout(r, 2000));
+                res = await fetch(url);
             }
 
-            query = encodeURIComponent(`${kommune} Kommune, Danmark`);
-            url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`;
-            res = await fetch(url, { headers: { 'User-Agent': 'FolkeskoleKortApp/1.0' } });
-            data = await res.json();
-            if (data && data.length > 0) {
-                return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.length > 0 && data[0].adgangspunkt) {
+                    const coords = data[0].adgangspunkt.koordinater;
+                    return [coords[1], coords[0]]; // [lat, lng]
+                }
+            }
+
+            // 2. Fallback til kommunes midte hvis skolenavnet ikke findes direkte
+            const urlKommune = `https://api.dataforsyningen.dk/kommuner?navn=${encodeURIComponent(kommune)}`;
+            let resKommune = await fetch(urlKommune);
+            if (resKommune.ok) {
+                const dataKommune = await resKommune.json();
+                if (dataKommune && dataKommune.length > 0 && dataKommune[0].visueltcenter) {
+                    const coords = dataKommune[0].visueltcenter;
+                    return [coords[1], coords[0]];
+                }
             }
         } catch (e) {
             console.warn(`Fejl ved søgning på ${navn}:`, e);
@@ -136,7 +151,7 @@
                 const kommune = skole.beliggenhedskommune;
                 const snit = skole['gennemsnit-bundneprøver'] || 'Ikke oplyst';
 
-                const coords = await fetchCoordsNominatim(navn, kommune);
+                const coords = await fetchCoordsDatafordeleren(navn, kommune);
 
                 if (coords) {
                     skole.lat = coords[0];
@@ -169,19 +184,19 @@
                 opdateredeSkoler.push(skole);
                 statusEl.innerText = `Placerer skoler... (${i + 1}/${skoler.length})`;
 
-                // Pause på 1,1 sekund for at overholde Nominatims regler
-                await new Promise(r => setTimeout(r, 1100));
+                // 100ms pause er rigeligt til Dataforsyningen API'et
+                await new Promise(r => setTimeout(r, 100));
             }
 
             statusEl.innerText = 'Færdig! Alle skoler behandlet.';
 
-            // 1. Dump filen til konsollen (F12 / Inspect -> Console)
+            // 1. Dump filen til konsollen
             const jsonString = JSON.stringify(opdateredeSkoler, null, 2);
             console.log("=== KOORDINATER DUMP START ===");
             console.log(jsonString);
             console.log("=== KOORDINATER DUMP SLUT ===");
 
-            // 2. Aktiver Download-knappen
+            // 2. Aktiver Download-knap
             downloadBtn.style.display = 'block';
             downloadBtn.onclick = () => {
                 const blob = new Blob([jsonString], { type: 'application/json' });
