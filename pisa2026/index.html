@@ -123,7 +123,7 @@
         maxZoom: 19
     }).addTo(map);
 
-    let visMode = 'snit'; // 'snit' eller 'fail'
+    let visMode = 'snit';
     let pladseredeMarkoerer = [];
     let opdateredeSkoler = [];
 
@@ -147,27 +147,15 @@
         return '#fa5252';
     }
 
-    function getMarkerRadius(failStr) {
-        if (visMode === 'snit') return 7;
-        if (!failStr) return 6;
-        const fail = parseFloat(String(failStr).replace('%', '').replace(',', '.'));
-        if (isNaN(fail)) return 6;
-        if (fail >= 15.0) return 11;
-        if (fail >= 10.0) return 9;
-        return 6;
-    }
-
     function opdaterMarkoerUdseende() {
         pladseredeMarkoerer.forEach(({ marker, skole }) => {
             const snit = skole['gennemsnit-bundneprøver'];
             const fail = skole['02danskmat'];
-
             const color = visMode === 'snit' ? getSnitColor(snit) : getFailColor(fail);
-            const radius = getMarkerRadius(fail);
 
             marker.setStyle({
                 fillColor: color,
-                radius: radius
+                radius: 7 // Fast radius for alle prikker
             });
         });
     }
@@ -223,27 +211,33 @@
         const navn = skole.institution;
         const kommune = skole.beliggenhedskommune;
         const snit = skole['gennemsnit-bundneprøver'] || 'Ikke oplyst';
-        const fail = skole['02danskmat'] || 'N/A';
+        const failProcentStr = skole['02danskmat'] || 'N/A';
+        const totalEleverStr = skole['antaleleverm.karakteriallebundneprøver'] || '0';
+
+        // Beregn præcist antal dumpede elever
+        const totalElever = parseInt(totalEleverStr, 10) || 0;
+        const failProcent = parseFloat(String(failProcentStr).replace('%', '').replace(',', '.')) || 0;
+        const antalDumpet = Math.round((totalElever * failProcent) / 100);
 
         skole.lat = coords[0];
         skole.lng = coords[1];
 
-        const color = visMode === 'snit' ? getSnitColor(snit) : getFailColor(fail);
-        const radius = getMarkerRadius(fail);
+        const color = visMode === 'snit' ? getSnitColor(snit) : getFailColor(failProcentStr);
 
         const marker = L.circleMarker(coords, {
-            radius: radius,
+            radius: 7, // Fast radius
             fillColor: color,
             color: '#ffffff',
             weight: 1.5,
             fillOpacity: 0.85
         })
         .bindPopup(`
-            <div style="font-size:13px;">
+            <div style="font-size:13px; line-height: 1.5;">
                 <strong style="font-size:14px;">${navn}</strong><br>
-                <span style="color:#666">${kommune} Kommune</span><br><br>
+                <span style="color:#666">${kommune} Kommune</span><br><hr style="border:0; border-top:1px solid #eee; margin:8px 0;">
                 <b>Karaktersnit (bundne prøver):</b> ${snit}<br>
-                <b>Ej bestået (Dansk/Matemakik):</b> <span style="color:${getFailColor(fail)}; font-weight:bold;">${fail}</span>
+                <b>Antal elever i prøverne:</b> ${totalElever} elever<br>
+                <b>Ej bestået (Dansk/Matemakik):</b> <span style="color:${getFailColor(failProcentStr)}; font-weight:bold;">${failProcentStr}</span> (${antalDumpet} ${antalDumpet === 1 ? 'elever' : 'elever'})
             </div>
         `)
         .addTo(map);
