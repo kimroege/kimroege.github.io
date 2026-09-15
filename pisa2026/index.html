@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Danmarkskort over Folkeskolers Karaktersnit - Aalborg Kommune</title>
+    <title>Kort over Folkeskoler i Aalborg - Karaktersnit & Ej Bestået</title>
     
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -21,6 +21,11 @@
         #map { flex: 1; height: 100%; }
         
         #sidebar { width: 340px; background: #f8f9fa; border-left: 1px solid #dee2e6; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        
+        .mode-toggle { display: flex; background: #e9ecef; border-radius: 6px; padding: 3px; gap: 4px; }
+        .mode-btn { flex: 1; padding: 8px 5px; border: none; background: transparent; font-size: 0.82rem; font-weight: bold; border-radius: 4px; cursor: pointer; color: #495057; text-align: center; }
+        .mode-btn.active { background: white; color: #1c7ed6; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
         .legend-item { display: flex; align-items: center; margin-bottom: 8px; font-size: 0.9rem; }
         .color-box { width: 16px; height: 16px; border-radius: 50%; margin-right: 10px; flex-shrink: 0; }
         
@@ -43,7 +48,6 @@
         }
         .btn-download:hover { background: #237032; }
 
-        /* Uplacerede skoler sektion */
         #unplaced-container { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
         .unplaced-card { background: white; border: 1px solid #ffc9c9; border-radius: 6px; padding: 10px; font-size: 0.85rem; }
         .unplaced-title { font-weight: bold; color: #c92a2a; margin-bottom: 4px; }
@@ -56,19 +60,38 @@
 <body>
 
 <header>
-    <h1>Folkeskolers Karaktersnit - Aalborg Kommune</h1>
+    <h1>Folkeskoler i Aalborg Kommune</h1>
     <div id="status">Klargør kort...</div>
 </header>
 
 <div id="container">
     <div id="map"></div>
     <div id="sidebar">
+        <!-- VÆLG VISUALISERINGS-TILSTAND -->
         <div>
-            <h3 style="margin-top:0;">Karakterskala</h3>
+            <h3 style="margin-top:0;">Visualisering</h3>
+            <div class="mode-toggle">
+                <button id="btn-mode-snit" class="mode-btn active" onclick="setVisMode('snit')">Karaktersnit</button>
+                <button id="btn-mode-fail" class="mode-btn" onclick="setVisMode('fail')">Ikke-bestået %</button>
+            </div>
+        </div>
+
+        <!-- TEGNFORKLARING / LEGEND -->
+        <div id="legend-snit">
+            <h3>Karakterskala</h3>
             <div class="legend-item"><div class="color-box" style="background:#2b8a3e"></div> Snit ≥ 8,5</div>
             <div class="legend-item"><div class="color-box" style="background:#40c057"></div> Snit 7,5 - 8,4</div>
             <div class="legend-item"><div class="color-box" style="background:#fab005"></div> Snit 6,5 - 7,4</div>
             <div class="legend-item"><div class="color-box" style="background:#fa5252"></div> Snit < 6,5</div>
+            <div class="legend-item"><div class="color-box" style="background:#868e96"></div> Ingen data / Ukendt</div>
+        </div>
+
+        <div id="legend-fail" style="display: none;">
+            <h3>Ej bestået % (Dansk/Mat)</h3>
+            <div class="legend-item"><div class="color-box" style="background:#2b8a3e"></div> 0% - 4,9% (Meget lav)</div>
+            <div class="legend-item"><div class="color-box" style="background:#fab005"></div> 5,0% - 9,9% (Middel)</div>
+            <div class="legend-item"><div class="color-box" style="background:#fd7e14"></div> 10,0% - 14,9% (Høj)</div>
+            <div class="legend-item"><div class="color-box" style="background:#fa5252"></div> ≥ 15,0% (Meget høj)</div>
             <div class="legend-item"><div class="color-box" style="background:#868e96"></div> Ingen data / Ukendt</div>
         </div>
 
@@ -93,7 +116,6 @@
 </div>
 
 <script>
-    // Initialisér kortet centreret over Aalborg Kommune
     const map = L.map('map').setView([57.048, 9.918], 11);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -101,7 +123,11 @@
         maxZoom: 19
     }).addTo(map);
 
-    function getMarkerColor(snitStr) {
+    let visMode = 'snit'; // 'snit' eller 'fail'
+    let pladseredeMarkoerer = [];
+    let opdateredeSkoler = [];
+
+    function getSnitColor(snitStr) {
         if (!snitStr) return '#868e96';
         const snit = parseFloat(String(snitStr).replace(',', '.'));
         if (isNaN(snit)) return '#868e96';
@@ -111,7 +137,52 @@
         return '#fa5252';
     }
 
-    // Geokodning via OpenStreetMap Nominatim uden fallback til midte
+    function getFailColor(failStr) {
+        if (!failStr) return '#868e96';
+        const fail = parseFloat(String(failStr).replace('%', '').replace(',', '.'));
+        if (isNaN(fail)) return '#868e96';
+        if (fail < 5.0) return '#2b8a3e';
+        if (fail < 10.0) return '#fab005';
+        if (fail < 15.0) return '#fd7e14';
+        return '#fa5252';
+    }
+
+    function getMarkerRadius(failStr) {
+        if (visMode === 'snit') return 7;
+        if (!failStr) return 6;
+        const fail = parseFloat(String(failStr).replace('%', '').replace(',', '.'));
+        if (isNaN(fail)) return 6;
+        if (fail >= 15.0) return 11;
+        if (fail >= 10.0) return 9;
+        return 6;
+    }
+
+    function opdaterMarkoerUdseende() {
+        pladseredeMarkoerer.forEach(({ marker, skole }) => {
+            const snit = skole['gennemsnit-bundneprøver'];
+            const fail = skole['02danskmat'];
+
+            const color = visMode === 'snit' ? getSnitColor(snit) : getFailColor(fail);
+            const radius = getMarkerRadius(fail);
+
+            marker.setStyle({
+                fillColor: color,
+                radius: radius
+            });
+        });
+    }
+
+    window.setVisMode = function(mode) {
+        visMode = mode;
+        document.getElementById('btn-mode-snit').className = `mode-btn ${mode === 'snit' ? 'active' : ''}`;
+        document.getElementById('btn-mode-fail').className = `mode-btn ${mode === 'fail' ? 'active' : ''}`;
+
+        document.getElementById('legend-snit').style.display = mode === 'snit' ? 'block' : 'none';
+        document.getElementById('legend-fail').style.display = mode === 'fail' ? 'block' : 'none';
+
+        opdaterMarkoerUdseende();
+    };
+
     async function fetchCoordsPræcis(navn, kommune, adresseManuel = null) {
         let forsoeg = 0;
         const maxForsoeg = 3;
@@ -129,7 +200,6 @@
                 if (res.status === 429) {
                     forsoeg++;
                     const ventetid = forsoeg * 2500;
-                    console.warn(`429 Modtaget for "${queryText}". Venter ${ventetid / 1000}s...`);
                     await new Promise(r => setTimeout(r, ventetid));
                     continue;
                 }
@@ -149,32 +219,36 @@
         return null;
     }
 
-    let opdateredeSkoler = [];
-
     function tilfoejMarkerTilKort(skole, coords) {
         const navn = skole.institution;
         const kommune = skole.beliggenhedskommune;
         const snit = skole['gennemsnit-bundneprøver'] || 'Ikke oplyst';
+        const fail = skole['02danskmat'] || 'N/A';
 
         skole.lat = coords[0];
         skole.lng = coords[1];
 
-        L.circleMarker(coords, {
-            radius: 7,
-            fillColor: getMarkerColor(snit),
+        const color = visMode === 'snit' ? getSnitColor(snit) : getFailColor(fail);
+        const radius = getMarkerRadius(fail);
+
+        const marker = L.circleMarker(coords, {
+            radius: radius,
+            fillColor: color,
             color: '#ffffff',
             weight: 1.5,
             fillOpacity: 0.85
         })
         .bindPopup(`
             <div style="font-size:13px;">
-                <strong>${navn}</strong><br>
+                <strong style="font-size:14px;">${navn}</strong><br>
                 <span style="color:#666">${kommune} Kommune</span><br><br>
-                <b>Karaktersnit:</b> ${snit}<br>
-                <b>Ej bestået dansk/mat:</b> ${skole['02danskmat'] || 'N/A'}
+                <b>Karaktersnit (bundne prøver):</b> ${snit}<br>
+                <b>Ej bestået (Dansk/Matemakik):</b> <span style="color:${getFailColor(fail)}; font-weight:bold;">${fail}</span>
             </div>
         `)
         .addTo(map);
+
+        pladseredeMarkoerer.push({ marker, skole });
     }
 
     async function loadSchoolData() {
@@ -190,8 +264,6 @@
             if (!response.ok) throw new Error('Kunne ikke hente filen folkeskoler_2026.json');
             
             const skolerAlle = await response.json();
-            
-            // --- FILTER: KUN AALBORG KOMMUNE ---
             const skoler = skolerAlle.filter(s => s.beliggenhedskommune === "Aalborg");
             
             statusEl.innerText = `Placerer ${skoler.length} skoler i Aalborg Kommune...`;
@@ -217,7 +289,6 @@
                     unplacedCount++;
                     unplacedCountEl.innerText = unplacedCount;
 
-                    // Tilføj til listen over uplacerede i sidepanelet
                     const card = document.createElement('div');
                     card.className = 'unplaced-card';
                     card.id = `unplaced-${skole.institutionsnummer}`;
@@ -234,14 +305,11 @@
 
                 opdateredeSkoler.push(skole);
                 statusEl.innerText = `Placerer skoler i Aalborg... (${i + 1}/${skoler.length})`;
-
-                // 1.1 sekunders pause for at undgå rate-limits
                 await new Promise(r => setTimeout(r, 1100));
             }
 
             statusEl.innerText = `Færdig! ${skoler.length} skoler i Aalborg behandlet.`;
 
-            // Aktiver Download-knap
             downloadBtn.style.display = 'block';
             downloadBtn.onclick = () => downloadJSON();
 
@@ -251,7 +319,6 @@
         }
     }
 
-    // Manuel opdatering for uplacerede skoler
     window.opdaterManuelt = async function(instNummer) {
         const inputEl = document.getElementById(`input-${instNummer}`);
         const adresse = inputEl.value.trim();
@@ -286,9 +353,6 @@
 
     function downloadJSON() {
         const jsonString = JSON.stringify(opdateredeSkoler, null, 2);
-        console.log("=== AALBORG KOORDINATER DUMP ===");
-        console.log(jsonString);
-
         const blob = new Blob([jsonString], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
