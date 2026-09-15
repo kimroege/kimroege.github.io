@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Danmarkskort over Folkeskolers Karaktersnit (2026)</title>
+    <title>Danmarkskort over Folkeskolers Karaktersnit</title>
     
-    <!-- Leaflet CSS & JS for Interaktivt Kort -->
+    <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
@@ -20,50 +20,53 @@
         #container { display: flex; flex: 1; overflow: hidden; }
         #map { flex: 1; height: 100%; }
         
-        #sidebar { width: 320px; background: #f8f9fa; border-left: 1px solid #dee2e6; padding: 20px; overflow-y: auto; }
+        #sidebar { width: 300px; background: #f8f9fa; border-left: 1px solid #dee2e6; padding: 20px; overflow-y: auto; }
         .legend-item { display: flex; align-items: center; margin-bottom: 8px; font-size: 0.9rem; }
-        .color-box { width: 18px; height: 18px; border-radius: 50%; margin-right: 10px; }
+        .color-box { width: 16px; height: 16px; border-radius: 50%; margin-right: 10px; flex-shrink: 0; }
         
         .stat-card { background: white; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px; margin-top: 15px; }
-        .stat-card h3 { margin: 0 0 5px 0; font-size: 0.9rem; color: #6c757d; }
-        .stat-card div { font-size: 1.4rem; font-weight: bold; color: #212529; }
+        .stat-card h3 { margin: 0 0 5px 0; font-size: 0.85rem; color: #6c757d; }
+        .stat-card div { font-size: 1.3rem; font-weight: bold; color: #212529; }
     </style>
 </head>
 <body>
 
 <header>
     <h1>Folkeskolers Karaktersnit i Danmark</h1>
-    <div id="status">Henter skoledata...</div>
+    <div id="status">Klargør kort...</div>
 </header>
 
 <div id="container">
     <div id="map"></div>
     <div id="sidebar">
-        <h3>Farvekoder</h3>
+        <h3>Karakterskala</h3>
         <div class="legend-item"><div class="color-box" style="background:#2b8a3e"></div> Snit ≥ 8,5</div>
         <div class="legend-item"><div class="color-box" style="background:#40c057"></div> Snit 7,5 - 8,4</div>
         <div class="legend-item"><div class="color-box" style="background:#fab005"></div> Snit 6,5 - 7,4</div>
         <div class="legend-item"><div class="color-box" style="background:#fa5252"></div> Snit < 6,5</div>
-        <div class="legend-item"><div class="color-box" style="background:#868e96"></div> Ukendt/Ingen data</div>
+        <div class="legend-item"><div class="color-box" style="background:#868e96"></div> Ingen data / Ukendt</div>
 
         <div class="stat-card">
-            <h3>Skoler Placeret på Kortet</h3>
+            <h3>Placerede Skoler</h3>
             <div id="count-display">0</div>
+        </div>
+        <div class="stat-card">
+            <h3>Fejlede/Avisviste Søgninger</h3>
+            <div id="fail-display">0</div>
         </div>
     </div>
 </div>
 
 <script>
-    // 1. Initialisér kortet centreret over Danmark
+    // 1. Initialisér kortet med OpenStreetMap (kræver INGEN API-nøgle)
     const map = L.map('map').setView([56.0, 11.6], 7);
     
-    // Tilføj et rent baggrundskort (CartoDB Positron)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap &copy; CARTO',
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> bidragsydere',
         maxZoom: 19
     }).addTo(map);
 
-    // Hjælpefunktion til at vælge farve baseret på karakter
+    // Hjælpefunktion til farvelægning efter karakter
     function getMarkerColor(snitStr) {
         if (!snitStr) return '#868e96';
         const snit = parseFloat(snitStr.replace(',', '.'));
@@ -74,70 +77,95 @@
         return '#fa5252';
     }
 
-    // 2. Hent og placer data fra JSON-filen
+    // Hjælpefunktion til geokodning hos DAWA med fallback
+    async function getCoordinates(navn, kommune) {
+        // Prøv 1: Søg på skole og kommune
+        try {
+            let url = `https://api.dawa.dk/adgangsadresser?q=${encodeURIComponent(navn + ' ' + kommune)}&per_side=1`;
+            let res = await fetch(url);
+            let data = await res.json();
+            
+            if (data && data.length > 0 && data[0].adgangspunkt) {
+                return { lat: data[0].adgangspunkt.koordinater[1], lng: data[0].adgangspunkt.koordinater[0] };
+            }
+
+            // Prøv 2: Søg kun på kommune (placeres i midten af kommunen som fallback)
+            url = `https://api.dawa.dk/kommuner?navn=${encodeURIComponent(kommune)}`;
+            res = await fetch(url);
+            data = await res.json();
+            if (data && data.length > 0 && data[0].visueltcenter) {
+                return { lat: data[0].visueltcenter[1], lng: data[0].visueltcenter[0] };
+            }
+        } catch (err) {
+            console.warn(`Netværksfejl under søgning på: ${navn}`, err);
+        }
+        return null;
+    }
+
+    // 2. Indlæs og behandl skoler
     async function loadSchoolData() {
         const statusEl = document.getElementById('status');
         const countEl = document.getElementById('count-display');
+        const failEl = document.getElementById('fail-display');
 
         try {
+            statusEl.innerText = 'Henter JSON-fil...';
             const response = await fetch('folkeskoler_2026.json');
-            const skoler = await response.json();
             
-            statusEl.innerText = `Indlæste ${skoler.length} skoler. Finder placeringer...`;
-            let count = 0;
+            if (!response.ok) {
+                throw new Error(`Kunne ikke finde filen folkeskoler_2026.json (Status ${response.status})`);
+            }
 
-            // Loop igennem skolerne og hent koordinater fra DAWA API
+            const skoler = await response.json();
+            statusEl.innerText = `Indlæste ${skoler.length} skoler. Placerer på kortet...`;
+
+            let successCount = 0;
+            let failCount = 0;
+
             for (const skole of skoler) {
                 const navn = skole.institution;
                 const kommune = skole.beliggenhedskommune;
-                const snit = skole['gennemsnit-bundneprøver'] || 'N/A';
+                const snit = skole['gennemsnit-bundneprøver'] || 'Ikke oplyst';
                 const ikkeBestaaet = skole['02danskmat'] || 'N/A';
 
-                try {
-                    // Geokodning via DAWA API (Danmarks Adresser Web API)
-                    const dawaRes = await fetch(`https://api.dawa.dk/adgangsadresser?q=${encodeURIComponent(navn + ', ' + kommune)}&per_side=1`);
-                    const dawaData = await dawaRes.json();
+                const coords = await getCoordinates(navn, kommune);
 
-                    if (dawaData && dawaData.length > 0) {
-                        const coords = dawaData[0].adgangspunkt.koordinater;
-                        const lat = coords[1];
-                        const lng = coords[0];
+                if (coords) {
+                    const color = getMarkerColor(snit);
+                    
+                    L.circleMarker([coords.lat, coords.lng], {
+                        radius: 6,
+                        fillColor: color,
+                        color: '#ffffff',
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    })
+                    .bindPopup(`
+                        <div style="font-size:13px;">
+                            <strong style="font-size:14px;">${navn}</strong><br>
+                            <span style="color:#666;">Kommune: ${kommune}</span><br><br>
+                            <b>Gennemsnit (bundne prøver):</b> ${snit}<br>
+                            <b>Ej bestået dansk/mat:</b> ${ikkeBestaaet}
+                        </div>
+                    `)
+                    .addTo(map);
 
-                        // Opret en cirkelmarkør på kortet
-                        const color = getMarkerColor(snit);
-                        L.circleMarker([lat, lng], {
-                            radius: 6,
-                            fillColor: color,
-                            color: '#ffffff',
-                            weight: 1,
-                            opacity: 1,
-                            fillOpacity: 0.85
-                        })
-                        .bindPopup(`
-                            <div style="font-size:14px;">
-                                <strong>${navn}</strong><br>
-                                <span>Kommune: ${kommune}</span><br><br>
-                                <b>Karaktersnit (bundne prøver):</b> ${snit}<br>
-                                <b>Ikke bestået (Dansk/Mat):</b> ${ikkeBestaaet}
-                            </div>
-                        `)
-                        .addTo(map);
-
-                        count++;
-                        countEl.innerText = count;
-                    }
-                } catch (e) {
-                    console.error(`Kunne ikke finde placering for ${navn}`, e);
+                    successCount++;
+                    countEl.innerText = successCount;
+                } else {
+                    failCount++;
+                    failEl.innerText = failCount;
                 }
 
-                // Pause i 50ms for undgå at overbelaste adresserings-API'et
-                await new Promise(r => setTimeout(r, 50));
+                // Lille forsinkelse (100 ms) så vi ikke udløser rate-limits
+                await new Promise(r => setTimeout(r, 100));
             }
 
-            statusEl.innerText = 'Kortlægning fuldført!';
+            statusEl.innerText = 'Kortlægning færdig!';
 
         } catch (error) {
-            statusEl.innerText = 'Fejl ved indlæsning af JSON-filen. Husk at køre via en lokal server.';
+            statusEl.innerText = `Fejl: ${error.message}`;
             console.error(error);
         }
     }
