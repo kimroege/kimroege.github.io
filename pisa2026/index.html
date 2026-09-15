@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danmarkskort over Folkeskolers Karaktersnit (2026)</title>
+    
+    <!-- Leaflet CSS & JS for Interaktivt Kort -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+        body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
+        
+        header { background: #1a252f; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        h1 { margin: 0; font-size: 1.2rem; }
+        #status { font-size: 0.9rem; color: #bdc3c7; }
+
+        #container { display: flex; flex: 1; overflow: hidden; }
+        #map { flex: 1; height: 100%; }
+        
+        #sidebar { width: 320px; background: #f8f9fa; border-left: 1px solid #dee2e6; padding: 20px; overflow-y: auto; }
+        .legend-item { display: flex; align-items: center; margin-bottom: 8px; font-size: 0.9rem; }
+        .color-box { width: 18px; height: 18px; border-radius: 50%; margin-right: 10px; }
+        
+        .stat-card { background: white; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px; margin-top: 15px; }
+        .stat-card h3 { margin: 0 0 5px 0; font-size: 0.9rem; color: #6c757d; }
+        .stat-card div { font-size: 1.4rem; font-weight: bold; color: #212529; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Folkeskolers Karaktersnit i Danmark</h1>
+    <div id="status">Henter skoledata...</div>
+</header>
+
+<div id="container">
+    <div id="map"></div>
+    <div id="sidebar">
+        <h3>Farvekoder</h3>
+        <div class="legend-item"><div class="color-box" style="background:#2b8a3e"></div> Snit ≥ 8,5</div>
+        <div class="legend-item"><div class="color-box" style="background:#40c057"></div> Snit 7,5 - 8,4</div>
+        <div class="legend-item"><div class="color-box" style="background:#fab005"></div> Snit 6,5 - 7,4</div>
+        <div class="legend-item"><div class="color-box" style="background:#fa5252"></div> Snit < 6,5</div>
+        <div class="legend-item"><div class="color-box" style="background:#868e96"></div> Ukendt/Ingen data</div>
+
+        <div class="stat-card">
+            <h3>Skoler Placeret på Kortet</h3>
+            <div id="count-display">0</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Initialisér kortet centreret over Danmark
+    const map = L.map('map').setView([56.0, 11.6], 7);
+    
+    // Tilføj et rent baggrundskort (CartoDB Positron)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
+        maxZoom: 19
+    }).addTo(map);
+
+    // Hjælpefunktion til at vælge farve baseret på karakter
+    function getMarkerColor(snitStr) {
+        if (!snitStr) return '#868e96';
+        const snit = parseFloat(snitStr.replace(',', '.'));
+        if (isNaN(snit)) return '#868e96';
+        if (snit >= 8.5) return '#2b8a3e';
+        if (snit >= 7.5) return '#40c057';
+        if (snit >= 6.5) return '#fab005';
+        return '#fa5252';
+    }
+
+    // 2. Hent og placer data fra JSON-filen
+    async function loadSchoolData() {
+        const statusEl = document.getElementById('status');
+        const countEl = document.getElementById('count-display');
+
+        try {
+            const response = await fetch('folkeskoler_2026.json');
+            const skoler = await response.json();
+            
+            statusEl.innerText = `Indlæste ${skoler.length} skoler. Finder placeringer...`;
+            let count = 0;
+
+            // Loop igennem skolerne og hent koordinater fra DAWA API
+            for (const skole of skoler) {
+                const navn = skole.institution;
+                const kommune = skole.beliggenhedskommune;
+                const snit = skole['gennemsnit-bundneprøver'] || 'N/A';
+                const ikkeBestaaet = skole['02danskmat'] || 'N/A';
+
+                try {
+                    // Geokodning via DAWA API (Danmarks Adresser Web API)
+                    const dawaRes = await fetch(`https://api.dawa.dk/adgangsadresser?q=${encodeURIComponent(navn + ', ' + kommune)}&per_side=1`);
+                    const dawaData = await dawaRes.json();
+
+                    if (dawaData && dawaData.length > 0) {
+                        const coords = dawaData[0].adgangspunkt.koordinater;
+                        const lat = coords[1];
+                        const lng = coords[0];
+
+                        // Opret en cirkelmarkør på kortet
+                        const color = getMarkerColor(snit);
+                        L.circleMarker([lat, lng], {
+                            radius: 6,
+                            fillColor: color,
+                            color: '#ffffff',
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.85
+                        })
+                        .bindPopup(`
+                            <div style="font-size:14px;">
+                                <strong>${navn}</strong><br>
+                                <span>Kommune: ${kommune}</span><br><br>
+                                <b>Karaktersnit (bundne prøver):</b> ${snit}<br>
+                                <b>Ikke bestået (Dansk/Mat):</b> ${ikkeBestaaet}
+                            </div>
+                        `)
+                        .addTo(map);
+
+                        count++;
+                        countEl.innerText = count;
+                    }
+                } catch (e) {
+                    console.error(`Kunne ikke finde placering for ${navn}`, e);
+                }
+
+                // Pause i 50ms for undgå at overbelaste adresserings-API'et
+                await new Promise(r => setTimeout(r, 50));
+            }
+
+            statusEl.innerText = 'Kortlægning fuldført!';
+
+        } catch (error) {
+            statusEl.innerText = 'Fejl ved indlæsning af JSON-filen. Husk at køre via en lokal server.';
+            console.error(error);
+        }
+    }
+
+    loadSchoolData();
+</script>
+
+</body>
+</html>
