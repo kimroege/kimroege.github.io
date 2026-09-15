@@ -27,6 +27,22 @@
         .stat-card { background: white; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px; margin-top: 15px; }
         .stat-card h3 { margin: 0 0 5px 0; font-size: 0.85rem; color: #6c757d; }
         .stat-card div { font-size: 1.3rem; font-weight: bold; color: #212529; }
+
+        .btn-download {
+            display: none;
+            width: 100%;
+            margin-top: 15px;
+            padding: 10px;
+            background: #2b8a3e;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+        }
+        .btn-download:hover { background: #237032; }
     </style>
 </head>
 <body>
@@ -50,6 +66,8 @@
             <h3>Placerede Skoler</h3>
             <div id="count-display">0</div>
         </div>
+
+        <button id="download-btn" class="btn-download">💾 Download JSON-fil</button>
     </div>
 </div>
 
@@ -71,10 +89,8 @@
         return '#fa5252';
     }
 
-    // Geokodning via OpenStreetMap Nominatim (Gratis & stabil)
     async function fetchCoordsNominatim(navn, kommune) {
         try {
-            // Prøv 1: Skolenavn + Kommune + Danmark
             let query = encodeURIComponent(`${navn}, ${kommune}, Danmark`);
             let url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`;
             
@@ -85,7 +101,6 @@
                 return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
             }
 
-            // Prøv 2: Fallback kun til Kommune
             query = encodeURIComponent(`${kommune} Kommune, Danmark`);
             url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`;
             res = await fetch(url, { headers: { 'User-Agent': 'FolkeskoleKortApp/1.0' } });
@@ -102,6 +117,7 @@
     async function loadSchoolData() {
         const statusEl = document.getElementById('status');
         const countEl = document.getElementById('count-display');
+        const downloadBtn = document.getElementById('download-btn');
 
         try {
             statusEl.innerText = 'Henter folkeskoler_2026.json...';
@@ -112,9 +128,10 @@
             statusEl.innerText = `Placerer ${skoler.length} skoler på kortet...`;
 
             let count = 0;
+            const opdateredeSkoler = [];
 
             for (let i = 0; i < skoler.length; i++) {
-                const skole = skoler[i];
+                const skole = { ...skoler[i] };
                 const navn = skole.institution;
                 const kommune = skole.beliggenhedskommune;
                 const snit = skole['gennemsnit-bundneprøver'] || 'Ikke oplyst';
@@ -122,6 +139,9 @@
                 const coords = await fetchCoordsNominatim(navn, kommune);
 
                 if (coords) {
+                    skole.lat = coords[0];
+                    skole.lng = coords[1];
+
                     L.circleMarker(coords, {
                         radius: 6,
                         fillColor: getMarkerColor(snit),
@@ -141,15 +161,38 @@
 
                     count++;
                     countEl.innerText = count;
+                } else {
+                    skole.lat = null;
+                    skole.lng = null;
                 }
 
+                opdateredeSkoler.push(skole);
                 statusEl.innerText = `Placerer skoler... (${i + 1}/${skoler.length})`;
 
-                // 1.1 sekund pause for at respektere Nominatims forbrugsgrænser (1 request/sek)
+                // Pause på 1,1 sekund for at overholde Nominatims regler
                 await new Promise(r => setTimeout(r, 1100));
             }
 
-            statusEl.innerText = 'Færdig! Alle skoler indlæst.';
+            statusEl.innerText = 'Færdig! Alle skoler behandlet.';
+
+            // 1. Dump filen til konsollen (F12 / Inspect -> Console)
+            const jsonString = JSON.stringify(opdateredeSkoler, null, 2);
+            console.log("=== KOORDINATER DUMP START ===");
+            console.log(jsonString);
+            console.log("=== KOORDINATER DUMP SLUT ===");
+
+            // 2. Aktiver Download-knappen
+            downloadBtn.style.display = 'block';
+            downloadBtn.onclick = () => {
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'folkeskoler_med_koordinater.json';
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+
         } catch (err) {
             statusEl.innerText = `Fejl: ${err.message}`;
             console.error(err);
